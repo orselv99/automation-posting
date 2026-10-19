@@ -1,13 +1,42 @@
 {
   "posts": [
     {
+      "logNo": "224443399456",
+      "date": "2026-10-15",
+      "title": "별을 감정하는 천문관과 가짜 운석",
+      "theme": "Theme G (Impossible Cartography & Celestial Lore)",
+      "tags": ["#판타지소설", "#단편소설", "#환상문학", "#별감정사", "#가짜운석"]
+    },
+    {
+      "logNo": "224445136954",
+      "date": "2026-10-16",
+      "title": "맹세를 벼리는 대장간과 구부러진 성검",
+      "theme": "Theme B (Taboos, Ancient Covenants & Rituals)",
+      "tags": ["#판타지소설", "#단편소설", "#환상문학", "#맹세의대장간", "#구부러진성검"]
+    },
+    {
+      "logNo": "224445625593",
+      "date": "2026-10-17",
+      "title": "한숨을 빚는 유리공과 허공에 뜬 남작",
+      "theme": "Theme A (Mystical Guilds & Ancient Crafts)",
+      "tags": ["#판타지소설", "#단편소설", "#환상문학", "#한숨유리공", "#유리공예장인"]
+    },
+    {
+      "logNo": "224446204944",
+      "date": "2026-10-18",
+      "title": "구름을 몰고 다니는 양치기와 고집불통 비구름",
+      "theme": "Theme I (Sentient Weather & Environmental Will)",
+      "tags": ["#판타지소설", "#단편소설", "#환상문학", "#양치기와비구름", "#날씨판타지"]
+    },
+    {
+      "logNo": "224446246932",
       "date": "2026-10-19",
       "title": "침묵의 방직공과 별빛의 매듭",
       "theme": "Theme A (Mystical Guilds & Ancient Crafts)",
       "concept": "지상으로 떨어져 굳어버린 차가운 별빛과 사람들이 차마 입 밖으로 내지 못한 침묵의 파편을 실로 자아내어 묵언의 예복을 짜는 고탑의 늙은 방직공 이야기",
       "story_file": "generated/2026-10/19-침묵의 방직공과 별빛의 매듭.md",
       "image_file": "generated/2026-10/19-침묵의 방직공과 별빛의 매듭.png",
-      "blog_url": "https://blog.naver.com/sun_o_glitter"
+      "tags": ["#판타지소설", "#단편소설", "#환상문학", "#별빛의매듭", "#방직공의탑"]
     }
   ]
 }
