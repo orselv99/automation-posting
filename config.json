@@ -5,5 +5,13 @@
   "story_length_chars": 2000,
   "chrome_profile_dir": "D:\\.repo\\.private\\artifacts_1\\chrome_profile",
   "history_file": "D:\\.repo\\.private\\artifacts_1\\history.json",
-  "output_dir": "D:\\.repo\\.private\\artifacts_1\\generated"
+  "output_dir": "D:\\.repo\\.private\\artifacts_1\\generated",
+  "email_alert": {
+    "recipient": "orselv99@gmail.com",
+    "schedule_title": "Daily Naver Blog Fantasy Novel",
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "orselv99@gmail.com",
+    "app_password": ""
+  }
 }
