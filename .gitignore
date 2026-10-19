@@ -16,4 +16,4 @@ __generated__/
 
 # Google OAuth tokens & secrets
 gdrive_token.json
-client_secret.json
+client_secret*.json
