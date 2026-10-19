@@ -43,6 +43,11 @@ DEFAULT_ENV = {
     "OUTPUT_DIR": "./generated",
     "GOOGLE_DRIVE_FOLDER": "__generated__/gemini-hobby-fantasy-scene",
     "GOOGLE_DRIVE_LOCAL_PATH": "",
+    "POST_FONT_FAMILY": "기본서체",
+    "POST_FONT_SIZE": "15",
+    "POST_FONT_COLOR": "색상없음",
+    "POST_ALIGN": "left",
+    "POST_LINE_HEIGHT": "180",
 }
 
 def _expand_var(val: str) -> str:
@@ -135,6 +140,20 @@ def load_config(config_path: str | Path = None) -> dict:
 
     output_dir_raw = config.get("output_dir") or os.environ.get("OUTPUT_DIR", "./generated")
     config["output_dir"] = str(resolve_path(output_dir_raw))
+
+    # 포스팅 타이포그래피 및 스타일 서식 설정
+    style_cfg = config.setdefault("post_style", {})
+    style_cfg.setdefault("font_family", os.environ.get("POST_FONT_FAMILY", DEFAULT_ENV["POST_FONT_FAMILY"]))
+    try:
+        style_cfg["font_size"] = int(style_cfg.get("font_size") or os.environ.get("POST_FONT_SIZE", DEFAULT_ENV["POST_FONT_SIZE"]))
+    except (ValueError, TypeError):
+        style_cfg["font_size"] = 15
+    style_cfg.setdefault("font_color", os.environ.get("POST_FONT_COLOR", DEFAULT_ENV["POST_FONT_COLOR"]))
+    style_cfg.setdefault("align", os.environ.get("POST_ALIGN", DEFAULT_ENV["POST_ALIGN"]))
+    try:
+        style_cfg["line_height"] = int(style_cfg.get("line_height") or os.environ.get("POST_LINE_HEIGHT", DEFAULT_ENV["POST_LINE_HEIGHT"]))
+    except (ValueError, TypeError):
+        style_cfg["line_height"] = 180
 
     # 이메일 알림 설정
     email_cfg = config.setdefault("email_alert", {})

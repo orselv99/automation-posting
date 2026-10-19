@@ -7,6 +7,13 @@
   "history_dir": "${HISTORY_DIR}",
   "history_file": "${HISTORY_FILE}",
   "output_dir": "${OUTPUT_DIR}",
+  "post_style": {
+    "font_family": "${POST_FONT_FAMILY}",
+    "font_size": "${POST_FONT_SIZE}",
+    "font_color": "${POST_FONT_COLOR}",
+    "align": "${POST_ALIGN}",
+    "line_height": "${POST_LINE_HEIGHT}"
+  },
   "email_alert": {
     "recipient": "${EMAIL_RECIPIENT}",
     "schedule_title": "Daily Naver Blog Fantasy Novel",
