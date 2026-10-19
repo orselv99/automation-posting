@@ -210,6 +210,14 @@ def publish_to_naver_blog(
         page.wait_for_timeout(1500)
         print("[+] 소설 본문 후반부 입력 완료")
 
+        # [단계 4.5: 본문 타이포그래피 서식 스타일 일괄 적용]
+        try:
+            from editor_style import apply_post_style
+            style_cfg = config.get("post_style", {})
+            apply_post_style(editor_frame, page, style_cfg)
+        except Exception as se:
+            print(f"[-] 서식 스타일 적용 알림 (기본값 유지): {se}")
+
         # [단계 5: 우측 상단 '발행' 버튼 클릭하여 설정 레이어 열기]
         print("[*] 상단 '발행' 버튼 클릭하여 발행 레이어 열기...")
         publish_top_btn = editor_frame.locator("button[data-click-area='tpb.publish']").first
