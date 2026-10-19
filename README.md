@@ -142,3 +142,52 @@
   ```bash
   python -c "from config_loader import get_config; import json; print(json.dumps(get_config(), indent=2, ensure_ascii=False))"
   ```
+
+---
+
+## 🏗️ 시스템 아키텍처 및 주니어 개발자 가이드
+
+프로젝트 유지보수 및 확장을 담당하는 주니어 개발자를 위한 핵심 기술 원리와 설계 결정 배경입니다.
+
+### 1. 전체 데이터 흐름도 (Data Pipeline)
+
+```mermaid
+flowchart TD
+    subgraph Setup ["초기 설정 & 환경"]
+        ENV[".env / config.json"] --> CL["config_loader.py (절대경로 및 환경변수 확장)"]
+        AUTH1["login_naver.py (크롬 영속 세션 chrome_profile/)"]
+        AUTH2["gdrive_auth.py (OAuth 2.0 gdrive_token.json)"]
+    end
+
+    subgraph Creation ["창작 단계 (09:00 KST)"]
+        HIST_READ["history_manager.py (최근 15편 소재 조회)"] --> PROMPT["prompt_spec.md (테마 선정 & 중복 방지)"]
+        PROMPT --> STORY["소설 원고 (.md)"]
+        PROMPT --> ILLUST["삽화 이미지 (.png, #ece0c6 배경)"]
+    end
+
+    subgraph Publishing ["발행 및 파이프라인"]
+        STORY & ILLUST --> PUB["publish_story.py"]
+        PUB --> CLEAN["clean_markdown_for_naver (마크다운 기호 제거)"]
+        CLEAN --> NP["naver_publisher.py (Playwright 키보드 타이핑)"]
+        NP -->|성공| GD["gdrive_archiver.py (구글 문서/이미지 백업)"]
+        NP -->|성공| HM_WRITE["history_manager.py (history/{yyyy-mm}.json 저장)"]
+        NP -->|3회 연속 실패| MAIL["email_notifier.py (관리자 Gmail 알림 & 로그)"]
+    end
+```
+
+### 2. 핵심 설계 결정 및 기술적 FAQ
+
+* **Q. 왜 `os.getcwd()` 대신 `Path(__file__).resolve().parent`를 기준으로 경로를 잡나요?**
+  * Windows 작업 스케줄러나 백그라운드 서비스에서 스크립트를 호출할 때, 호출자의 작업 디렉터리가 `C:\Windows\System32` 등으로 달라질 수 있습니다. `config_loader.py`의 위치를 기준으로 프로젝트 루트(`PROJECT_ROOT`)를 고정하여 경로 불일치 버그를 근본적으로 방지합니다.
+
+* **Q. 네이버 에디터에 왜 `innerHTML`이나 자바스크립트 주입 대신 `keyboard.insert_text()`를 쓰나요?**
+  * 스마트에디터 ONE은 React 기반의 contenteditable 에디터입니다. DOM 트리를 직접 수정하면 React 내부 Virtual DOM State와 동기화되지 않아 발행 시 내용이 증발합니다. 실제 사용자 키 입력 이벤트를 발생시켜야 State가 올바르게 업데이트됩니다.
+
+* **Q. 왜 브라우저 대신 HTTP 요청(urllib)으로 글 목록을 탐색하나요?**
+  * 네이버 블로그의 iframe 페이지네이션을 브라우저로 클릭하면 2페이지 이후 로딩 지연 및 레이스 컨디션이 빈번합니다. 반면 `PostList.naver`에 HTTP GET 요청을 보내면 서버가 `socialPluginInfoJson` 안에 전체 글 번호와 제목을 정형 JSON으로 내려주므로, 70편 전체를 2초 만에 오차 없이 수집할 수 있습니다.
+
+* **Q. 히스토리 파일을 왜 월별(`history/{yyyy-mm}.json`)로 분할했나요?**
+  * 단일 `history.json` 파일은 수백 편이 쌓일수록 I/O 비용이 급증하고 정전이나 비정상 종료 시 전체 데이터 손상 위험이 있습니다. 월별 분할을 적용하면 활성 파일 크기가 작게 유지되며, 최근 소재 중복 검사 시에도 최신 1~2개 월 파일만 읽으면 되므로 매우 효율적입니다.
+
+* **Q. 제목에서 태그를 추출할 때 정규식이 복잡한 이유는 무엇인가요?**
+  * "기억을 거래하는 숲의 길잡이와 살구 타르트"에서 단순 공백 분리를 하면 `['#기억을', '#거래하는']`처럼 무의미한 조사와 관형형 동사가 추출됩니다. `와/과` 대등 구문 분리, 관형어/동사 제거 정규식(`VERB_STRIP_REGEX`), 그리고 조사 제거 시 단어 손상을 막는 긍정형 후방탐색(`(?<=[가-힣])`)을 적용해 `#길잡이`, `#살구타르트` 같은 핵심 명사만 정밀하게 추출합니다.
