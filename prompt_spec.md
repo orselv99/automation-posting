@@ -50,29 +50,44 @@ To ensure diverse, fresh, and non-repetitive storytelling for daily readers, rot
 
 - **Style Anchor:**
   `Detailed monochrome pen and ink illustration, cross-hatching line art style, etching and woodcut engraving inspired, classic dark fantasy indie graphic novel art. Strictly no color fills—depth, volume, and shadows are created entirely through fine line density, hatching, and stippling. High contrast, highly detailed background, atmospheric lighting. (background color is #ece0c6)`
-- **Optional Accent (Selective Tinting):**
-  * In scenes involving ancient magic or singular relics, a single subtle glowing accent color may be noted (e.g., `selective subtle luminous azure glow on the ancient rune`).
 - **Visual Composition Rule:**
   * Pure classic/medieval fantasy props only (parchments, wax seals, gothic stone arches, oil lanterns, astrolabes, quill pens, intricate iron keys, gargoyles, wrought-iron chandeliers).
-  * 16:9 or 4:3 widescreen ratio, cinematic framing centered around the narrative climax.
+  * 16:9 cinematic framing centered around the narrative climax.
 
 ---
 
-# Output Document Structure (Korean)
+# Document Style & Publishing Guidelines (Naver SmartEditor ONE)
 
-```markdown
+1. **마크다운 문법 배제 (No Markdown Syntax in Story Body)**:
+   - 네이버 블로그는 마크다운을 지원하지 않으므로, 본문에 `>`, `**`, `---`, `###` 등의 마크다운 기호를 쓰지 않고 자연스러운 순수 텍스트 줄글로 작성합니다.
+   - 도입부 인용구는 `— 『작품/문서명』 중` 형식의 자연스러운 문장으로 시작합니다.
+
+2. **네이버 블로그 기본 서식 규격**:
+   - 글씨체: 기본서체
+   - 글씨크기: 15pt
+   - 글씨색상: 색상없음 (기본 텍스트 색상)
+
+3. **태그 구성 규칙 (정확히 5~6종)**:
+   - **기본태그 (3종 필수)**: `#판타지소설`, `#단편소설`, `#환상문학`
+   - **특정태그 (2~3종)**: 소설의 고유 소재, 핵심 키워드, 제목에 기반한 검색 유입용 맞춤 태그
+
+---
+
+# Output Document Structure
+
+```text
 ### 0. 📌 오늘의 판타지 씬 개요
-- **제목:** [감각적이고 서정적인 제목]
-- **분야/장르:** [예: 중세 다크판타지 / 신비주의 미스터리 / 고전 환상문학]
-- **선택 테마:** [Theme A ~ J 중 택 1]
-- **핵심 컨셉:** [1~2줄 요약]
+- 제목: [감각적이고 서정적인 제목]
+- 분야/장르: [예: 중세 다크판타지 / 고전 환상문학]
+- 선택 테마: [Theme A ~ J 중 택 1]
+- 핵심 컨셉: [1~2줄 요약]
 
 ### 1. 🎨 AI 이미지 생성 프롬프트
-- **English Prompt:** [스타일 앵커와 세부 장면 묘사가 결합된 영문 프롬프트]
-- **프롬프트 요약 해설:** [구도, 명암 대비, 디테일 포인트 한국어 설명]
+- English Prompt: [스타일 앵커와 세부 장면 묘사가 결합된 영문 프롬프트]
+- 프롬프트 요약 해설: [구도, 명암 대비, 디테일 포인트 한국어 설명]
 
-### 2. 📖 마스터피스 단편 소설 (약 2000자)
-> [도입부 인용구 / 서사적 잠언]
+### 2. 마스터피스 단편 소설 (약 2000자)
+[도입부 인용 잠언 (마크다운 > 기호 없이 순수 텍스트)]
 
 (본문 전반부 텍스트: 약 1,000자)
 
@@ -80,6 +95,5 @@ To ensure diverse, fresh, and non-repetitive storytelling for daily readers, rot
 
 (본문 후반부 텍스트: 약 1,000자)
 
----
-**태그:** #판타지소설 #단편소설 #웹소설 #자작소설 #다크판타지 #판타지세계관 #환상문학 #Quatsch #[작품맞춤태그]
+태그: #판타지소설 #단편소설 #환상문학 #[특정태그1] #[특정태그2]
 ```

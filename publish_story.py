@@ -1,5 +1,6 @@
 """
 CLI Helper to publish a generated story file to Naver Blog with 3-attempt retry & email fallback.
+Cleans markdown syntax for Naver SmartEditor ONE and applies standard typography & tag rules.
 Usage:
   python publish_story.py --story path/to/story.md --image path/to/illustration.png
 """
@@ -22,52 +23,101 @@ if sys.stdout.encoding != 'utf-8':
 from naver_publisher import publish_to_naver_blog
 from email_notifier import send_failure_email
 
+BASE_TAGS = ["#판타지소설", "#단편소설", "#환상문학"]
+
+def clean_markdown_for_naver(text: str) -> str:
+    """
+    Strips markdown formatting symbols so text displays cleanly in Naver SmartEditor ONE.
+    """
+    lines = []
+    for line in text.split("\n"):
+        stripped = line.strip()
+        # Remove markdown horizontal rules
+        if re.match(r"^[-*_]{3,}\s*$", stripped):
+            continue
+        # Remove markdown quote prefix ('> ')
+        stripped = re.sub(r"^>\s*", "", stripped)
+        # Remove markdown headers ('### ')
+        stripped = re.sub(r"^#{1,6}\s*", "", stripped)
+        # Remove bold/italic markers (**text**, *text*, __text__)
+        stripped = re.sub(r"\*\*(.*?)\*\*", r"\1", stripped)
+        stripped = re.sub(r"\*(.*?)\*", r"\1", stripped)
+        stripped = re.sub(r"__(.*?)__", r"\1", stripped)
+        stripped = re.sub(r"`(.*?)`", r"\1", stripped)
+        lines.append(stripped)
+    return "\n".join(lines).strip()
+
 def parse_story_markdown(file_path: Path):
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Extract title
+    # 1. Extract title
     title = "오늘의 환상 단편"
-    title_match = re.search(r"-\s*\*\*제목:\*\*\s*(.+)", content)
+    title_match = re.search(r"-\s*\*?제목:?\*?\s*(.+)", content)
     if title_match:
         title = title_match.group(1).strip()
     else:
         header_match = re.search(r"^#+\s*(.+)", content, re.MULTILINE)
         if header_match:
             title = header_match.group(1).strip()
+    title = clean_markdown_for_naver(title)
 
-    # Extract Tags
-    tags = []
-    tag_match = re.search(r"\*\*태그:\*\*\s*(.+)", content)
+    # 2. Extract and format Tags
+    # Base tags: #판타지소설, #단편소설, #환상문학
+    # Specific tags: 2~3 specific tags
+    extracted_tags = []
+    tag_match = re.search(r"\*?태그:?\*?\s*(.+)", content)
     if tag_match:
         raw_tags = tag_match.group(1)
-        tags = [t.strip() for t in raw_tags.split() if t.startswith("#")]
-    if not tags:
-        tags = ["#판타지소설", "#단편소설", "#환상문학", "#Quatsch"]
+        for t in raw_tags.split():
+            clean_t = t.strip().replace(",", "")
+            if clean_t.startswith("#"):
+                extracted_tags.append(clean_t)
+            elif clean_t:
+                extracted_tags.append(f"#{clean_t}")
 
-    # Extract Story Section (under ### 2. 📖 마스터피스 단편 소설)
+    # Separate into base tags and specific tags
+    specific_tags = [t for t in extracted_tags if t not in BASE_TAGS and t not in ["#Quatsch", "#웹소설", "#소설연재"]]
+    if not specific_tags:
+        # Generate specific tags from title if none provided
+        words = [w for w in re.split(r"\s+", title) if len(w) >= 2]
+        specific_tags = [f"#{w}" for w in words[:2]]
+
+    # Final tags: 3 base tags + 2~3 specific tags
+    final_tags = list(BASE_TAGS)
+    for stag in specific_tags[:3]:
+        if stag not in final_tags:
+            final_tags.append(stag)
+
+    # 3. Extract Story Section
     story_section = content
     if "### 2." in content:
         story_section = content.split("### 2.")[1]
     elif "### 2" in content:
         story_section = content.split("### 2")[1]
 
-    # Remove tags and separator at the bottom
+    # Remove tags and bottom separator from body
     if "---" in story_section:
         story_section = story_section.split("---")[0]
+    if "태그:" in story_section:
+        story_section = story_section.split("태그:")[0]
 
     # Split by illustration marker
     parts = re.split(r"\[(?:삽화 삽입 위치|삽화 위치|삽화|ILLUSTRATION_HERE)\]", story_section, flags=re.IGNORECASE)
     if len(parts) >= 2:
-        part1 = parts[0].strip()
-        part2 = parts[1].strip()
+        raw_part1 = parts[0].strip()
+        raw_part2 = parts[1].strip()
     else:
         paragraphs = [p for p in story_section.strip().split("\n\n") if p.strip()]
         mid = len(paragraphs) // 2
-        part1 = "\n\n".join(paragraphs[:mid])
-        part2 = "\n\n".join(paragraphs[mid:])
+        raw_part1 = "\n\n".join(paragraphs[:mid])
+        raw_part2 = "\n\n".join(paragraphs[mid:])
 
-    return title, part1, part2, tags
+    # Clean markdown syntax from story parts
+    part1 = clean_markdown_for_naver(raw_part1)
+    part2 = clean_markdown_for_naver(raw_part2)
+
+    return title, part1, part2, final_tags
 
 def main():
     parser = argparse.ArgumentParser(description="Publish generated story to Naver Blog with 3 retries")
@@ -89,9 +139,10 @@ def main():
         sys.exit(1)
 
     title, part1, part2, tags = parse_story_markdown(story_path)
-    print(f"[*] 파싱된 제목: {title}")
-    print(f"[*] 본문 1부 길이: {len(part1)}자 / 2부 길이: {len(part2)}자")
-    print(f"[*] 태그 목록: {tags}")
+    print(f"[*] 파싱 및 정제된 제목: {title}")
+    print(f"[*] 본문 1부 길이: {len(part1)}자 (마크다운 문법 제거 완료)")
+    print(f"[*] 본문 2부 길이: {len(part2)}자 (마크다운 문법 제거 완료)")
+    print(f"[*] 규격화된 태그 목록 (기본 3종 + 특정 2~3종): {tags}")
 
     MAX_RETRIES = 3
     last_error = ""
