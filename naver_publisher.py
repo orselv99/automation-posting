@@ -41,7 +41,7 @@ def publish_to_naver_blog(
     output_dir = Path(config.get("output_dir", r"D:\.repo\.private\artifacts_1\generated"))
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    screenshot_path = output_dir / f"publish_{int(time.time())}.png"
+    screenshot_path = output_dir / f"publish_result_{int(time.time())}.png"
 
     print(f"[*] 블로그 자동 발행 시작: https://blog.naver.com/{blog_id}")
     print(f"[*] 대상 카테고리: {category_name}")
@@ -86,8 +86,7 @@ def publish_to_naver_blog(
 
         # Check if wrapped in mainFrame iframe or direct page
         editor_frame = page
-        frames = page.frames
-        for frame in frames:
+        for frame in page.frames:
             if "mainFrame" in frame.name:
                 editor_frame = frame
                 print("[*] mainFrame 프레임 발견 및 전환 완료")
@@ -95,8 +94,8 @@ def publish_to_naver_blog(
 
         # Check for popup: '작성 중인 글이 있습니다' -> Click cancel to start fresh
         try:
-            cancel_btn = editor_frame.locator(".se-popup-button-cancel, .se-popup-cancel, button:has-text('취소')").first
-            if cancel_btn.is_visible(timeout=2500):
+            cancel_btn = editor_frame.locator('div[data-group="popupLayer"] button.se-popup-button-cancel').first
+            if cancel_btn.is_visible(timeout=3000):
                 print("[*] 이전 작성 중인 글 팝업 발견 -> '취소' 클릭하여 새 글 작성")
                 cancel_btn.click()
                 page.wait_for_timeout(1000)
@@ -119,9 +118,9 @@ def publish_to_naver_blog(
 
         title_locator.click()
         page.wait_for_timeout(500)
-        editor_frame.keyboard.type(title, delay=30)
-        editor_frame.keyboard.press("Enter")
-        page.wait_for_timeout(1000)
+        page.keyboard.insert_text(title)
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(800)
         print("[+] 제목 입력 완료")
 
         # 2. Input Part 1 of Novel
@@ -129,11 +128,11 @@ def publish_to_naver_blog(
         for paragraph in body_part1.strip().split("\n"):
             line = paragraph.strip()
             if not line:
-                editor_frame.keyboard.press("Enter")
+                page.keyboard.press("Enter")
                 continue
-            editor_frame.keyboard.type(line, delay=15)
-            editor_frame.keyboard.press("Enter")
-            page.wait_for_timeout(100)
+            page.keyboard.insert_text(line)
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(30)
 
         page.wait_for_timeout(1000)
         print("[+] 소설 본문 전반부 입력 완료")
@@ -141,49 +140,71 @@ def publish_to_naver_blog(
         # 3. Upload Illustration Image at current position
         if image_path and os.path.exists(image_path):
             print(f"[*] 삽화 업로드 중: {image_path}")
+            abs_image_path = os.path.abspath(image_path)
             try:
-                file_input = editor_frame.locator("input[type='file'][accept*='image']").first
-                if not file_input.count():
-                    pic_btn = editor_frame.locator("button[data-name='image'], button.se-image-toolbar-button, button:has-text('사진')").first
-                    if pic_btn.is_visible(timeout=3000):
+                pic_btn = editor_frame.locator("button[data-name='image'], button.se-image-toolbar-button, button:has-text('사진')").first
+                if pic_btn.is_visible(timeout=3000):
+                    with page.expect_file_chooser(timeout=6000) as fc_info:
                         pic_btn.click()
-                        page.wait_for_timeout(1000)
+                    file_chooser = fc_info.value
+                    file_chooser.set_files(abs_image_path)
+                    print("[*] 파일 선택기를 통해 이미지 첨부 성공")
+                else:
                     file_input = editor_frame.locator("input[type='file'][accept*='image']").first
+                    file_input.set_input_files(abs_image_path)
+                    print("[*] 파일 인풋을 통해 이미지 첨부 성공")
 
-                file_input.set_input_files(image_path)
-                print("[*] 이미지 파일 첨부 성공, 업로드 대기 중...")
-                page.wait_for_timeout(5000)
+                print("[*] 이미지 업로드 완료 대기 중 (6초)...")
+                page.wait_for_timeout(6000)
                 print("[+] 삽화 이미지 업로드 및 삽입 완료")
             except Exception as e:
-                print(f"[!] 이미지 업로드 중 예외 발생 (건너뜀): {e}")
+                print(f"[!] 이미지 첨부 중 알림: {e}")
+                try:
+                    file_input = editor_frame.locator("input[type='file'][accept*='image']").first
+                    file_input.set_input_files(abs_image_path)
+                    page.wait_for_timeout(5000)
+                except Exception as e2:
+                    print(f"[!] 이미지 재시도 실패: {e2}")
+
+        # Move cursor below the uploaded image
+        page.keyboard.press("ArrowDown")
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(500)
 
         # 4. Input Part 2 of Novel
         print("[*] 소설 본문 후반부 입력 중...")
         for paragraph in body_part2.strip().split("\n"):
             line = paragraph.strip()
             if not line:
-                editor_frame.keyboard.press("Enter")
+                page.keyboard.press("Enter")
                 continue
-            editor_frame.keyboard.type(line, delay=15)
-            editor_frame.keyboard.press("Enter")
-            page.wait_for_timeout(100)
+            page.keyboard.insert_text(line)
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(30)
 
         page.wait_for_timeout(1500)
         print("[+] 소설 본문 후반부 입력 완료")
 
-        # 5. Click Top "발행" button
-        print("[*] '발행' 버튼 클릭하여 발행 레이어 열기...")
-        publish_top_btn = editor_frame.locator("button:has-text('발행'), button[class*='publish_btn']").first
+        # 5. Click Top "발행" button to open layer
+        print("[*] 상단 '발행' 버튼 클릭하여 발행 레이어 열기...")
+        publish_top_btn = editor_frame.locator("button[data-click-area='tpb.publish']").first
         publish_top_btn.click()
-        page.wait_for_timeout(2000)
+        page.wait_for_timeout(2500)
 
         # 6. Select Category in Publish Layer
         try:
             print(f"[*] 카테고리 '{category_name}' 확인/선택 시도...")
-            cat_item = editor_frame.locator(f"label:has-text('{category_name}'), span:has-text('{category_name}'), div:has-text('{category_name}')").first
-            if cat_item.is_visible(timeout=3000):
-                cat_item.click()
-                print(f"[+] 카테고리 '{category_name}' 선택 완료")
+            select_btn = editor_frame.locator("button.selectbox_button__IxraO, button[class*='selectbox_button']").first
+            if select_btn.is_visible(timeout=3000):
+                current_cat = select_btn.inner_text().strip()
+                if category_name not in current_cat:
+                    select_btn.click()
+                    page.wait_for_timeout(500)
+                    editor_frame.locator(f"li:has-text('{category_name}'), span:has-text('{category_name}')").first.click()
+                    page.wait_for_timeout(500)
+                    print(f"[+] 카테고리 '{category_name}' 선택 완료")
+                else:
+                    print(f"[+] 카테고리가 이미 '{category_name}'으로 지정되어 있습니다.")
         except Exception as e:
             print(f"[-] 카테고리 선택 알림 (기본값 유지): {e}")
 
@@ -191,28 +212,28 @@ def publish_to_naver_blog(
         if tags:
             try:
                 print(f"[*] 태그 입력 시도: {tags[:5]}...")
-                tag_input = editor_frame.locator("input[placeholder*='태그'], .tag_input__... input, input.tag_input").first
+                tag_input = editor_frame.locator("input[class*='tag_input']").first
                 if tag_input.is_visible(timeout=3000):
                     tag_input.click()
                     for tag in tags[:10]:
                         clean_tag = tag.replace("#", "").strip()
                         if clean_tag:
                             tag_input.fill(clean_tag)
-                            editor_frame.keyboard.press("Enter")
-                            page.wait_for_timeout(300)
+                            page.keyboard.press("Enter")
+                            page.wait_for_timeout(250)
                     print("[+] 태그 입력 완료")
             except Exception as e:
                 print(f"[-] 태그 입력 알림: {e}")
 
         # 8. Confirm Publication
         print("[*] 최종 발행 버튼 클릭...")
-        confirm_btn = editor_frame.locator("button.confirm_btn__..., button[class*='confirm_btn'], button[type='submit']:has-text('발행')").first
+        confirm_btn = editor_frame.locator("button[data-click-area='tpb*i.publish']").first
         if not confirm_btn.is_visible(timeout=3000):
-            confirm_btn = editor_frame.locator(".layer_publish button:has-text('발행')").first
+            confirm_btn = editor_frame.locator(".layer_publish button:has-text('발행'), button.confirm_btn__byZZW").first
 
         confirm_btn.click()
-        print("[*] 최종 발행 처리 대기 중...")
-        page.wait_for_timeout(7000)
+        print("[*] 최종 발행 처리 대기 중 (8초)...")
+        page.wait_for_timeout(8000)
 
         # Take screenshot for proof
         page.screenshot(path=str(screenshot_path))
@@ -227,4 +248,4 @@ def publish_to_naver_blog(
     }
 
 if __name__ == "__main__":
-    print("naver_publisher module loaded. Run run_daily_post.py or publish_story.py to execute.")
+    print("naver_publisher module loaded. Run publish_story.py to execute.")

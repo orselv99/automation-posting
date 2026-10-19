@@ -1,3 +1,13 @@
 {
-  "posts": []
+  "posts": [
+    {
+      "date": "2026-10-19",
+      "title": "침묵의 방직공과 별빛의 매듭",
+      "theme": "Theme A (Mystical Guilds & Ancient Crafts)",
+      "concept": "지상으로 떨어져 굳어버린 차가운 별빛과 사람들이 차마 입 밖으로 내지 못한 침묵의 파편을 실로 자아내어 묵언의 예복을 짜는 고탑의 늙은 방직공 이야기",
+      "story_file": "generated/2026-10/19-침묵의 방직공과 별빛의 매듭.md",
+      "image_file": "generated/2026-10/19-침묵의 방직공과 별빛의 매듭.png",
+      "blog_url": "https://blog.naver.com/sun_o_glitter"
+    }
+  ]
 }
