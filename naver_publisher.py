@@ -9,6 +9,13 @@ import time
 from pathlib import Path
 from playwright.sync_api import sync_playwright, Page, TimeoutError as PlaywrightTimeoutError
 
+# Ensure UTF-8 output on Windows
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 def publish_to_naver_blog(
     title: str,
     body_part1: str,
@@ -60,6 +67,23 @@ def publish_to_naver_blog(
         page.goto(write_url, wait_until="domcontentloaded", timeout=45000)
         page.wait_for_timeout(4000)
 
+        # Check for login redirection
+        current_url = page.url
+        if "nidlogin" in current_url or "nid.naver.com" in current_url:
+            print("\n" + "!" * 60)
+            print("[!] 네이버 로그인이 필요합니다!")
+            print(f"[!] 현재 접속 페이지: {current_url}")
+            print(f"[!] 전용 프로필({profile_dir})에 로그인 세션이 없습니다.")
+            print("[!] 터미널에서 다음 명령어를 실행하여 1회 로그인해 주세요:")
+            print("    python login_naver.py")
+            print("!" * 60 + "\n")
+            page.screenshot(path=str(output_dir / "login_required.png"))
+            context.close()
+            return {
+                "status": "error",
+                "error": "로그인이 필요합니다. 터미널에서 'python login_naver.py'를 실행해 로그인 세션을 등록해 주세요."
+            }
+
         # Check if wrapped in mainFrame iframe or direct page
         editor_frame = page
         frames = page.frames
@@ -102,7 +126,6 @@ def publish_to_naver_blog(
 
         # 2. Input Part 1 of Novel
         print("[*] 소설 본문 전반부 입력 중...")
-        # Split body part 1 by newlines to keep paragraph formatting
         for paragraph in body_part1.strip().split("\n"):
             line = paragraph.strip()
             if not line:
@@ -118,11 +141,9 @@ def publish_to_naver_blog(
         # 3. Upload Illustration Image at current position
         if image_path and os.path.exists(image_path):
             print(f"[*] 삽화 업로드 중: {image_path}")
-            # Locate file input element for image upload
             try:
                 file_input = editor_frame.locator("input[type='file'][accept*='image']").first
                 if not file_input.count():
-                    # Click picture toolbar button to trigger input
                     pic_btn = editor_frame.locator("button[data-name='image'], button.se-image-toolbar-button, button:has-text('사진')").first
                     if pic_btn.is_visible(timeout=3000):
                         pic_btn.click()
@@ -187,7 +208,6 @@ def publish_to_naver_blog(
         print("[*] 최종 발행 버튼 클릭...")
         confirm_btn = editor_frame.locator("button.confirm_btn__..., button[class*='confirm_btn'], button[type='submit']:has-text('발행')").first
         if not confirm_btn.is_visible(timeout=3000):
-            # Fallback to any visible publish button inside layer
             confirm_btn = editor_frame.locator(".layer_publish button:has-text('발행')").first
 
         confirm_btn.click()
@@ -207,4 +227,4 @@ def publish_to_naver_blog(
     }
 
 if __name__ == "__main__":
-    print("naver_publisher module loaded. Run run_daily_post.py to execute the full pipeline.")
+    print("naver_publisher module loaded. Run run_daily_post.py or publish_story.py to execute.")

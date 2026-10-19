@@ -9,6 +9,14 @@ import sys
 import json
 import argparse
 from pathlib import Path
+
+# Ensure UTF-8 output on Windows
+if sys.stdout.encoding != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 from naver_publisher import publish_to_naver_blog
 
 def parse_story_markdown(file_path: Path):
@@ -21,7 +29,6 @@ def parse_story_markdown(file_path: Path):
     if title_match:
         title = title_match.group(1).strip()
     else:
-        # Fallback search for # or ###
         header_match = re.search(r"^#+\s*(.+)", content, re.MULTILINE)
         if header_match:
             title = header_match.group(1).strip()
@@ -47,13 +54,11 @@ def parse_story_markdown(file_path: Path):
         story_section = story_section.split("---")[0]
 
     # Split by illustration marker
-    # Common markers: [삽화 삽입 위치], [삽화], [ILLUSTRATION_HERE]
     parts = re.split(r"\[(?:삽화 삽입 위치|삽화 위치|삽화|ILLUSTRATION_HERE)\]", story_section, flags=re.IGNORECASE)
     if len(parts) >= 2:
         part1 = parts[0].strip()
         part2 = parts[1].strip()
     else:
-        # Split roughly in half by paragraphs if no explicit marker found
         paragraphs = [p for p in story_section.strip().split("\n\n") if p.strip()]
         mid = len(paragraphs) // 2
         part1 = "\n\n".join(paragraphs[:mid])
@@ -76,9 +81,9 @@ def main():
         sys.exit(1)
 
     title, part1, part2, tags = parse_story_markdown(story_path)
-    print(f"Parsed story title: {title}")
-    print(f"Part 1 length: {len(part1)} chars, Part 2 length: {len(part2)} chars")
-    print(f"Tags: {tags}")
+    print(f"[*] 파싱된 제목: {title}")
+    print(f"[*] 본문 1부 길이: {len(part1)}자 / 2부 길이: {len(part2)}자")
+    print(f"[*] 태그 목록: {tags}")
 
     result = publish_to_naver_blog(
         title=title,
@@ -89,7 +94,9 @@ def main():
         headless=args.headless
     )
 
-    print("Publish result:", result)
+    print("[*] 실행 결과:", result)
+    if result.get("status") == "error":
+        sys.exit(2)
 
 if __name__ == "__main__":
     main()
