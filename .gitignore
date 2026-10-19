@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+venv/
+.venv/
+
+# Chrome User Profile
+chrome_profile/
+
+# Generated artifacts & logs
+generated/
+*.log

@@ -1,0 +1,9 @@
+{
+  "blog_id": "sun_o_glitter",
+  "category_name": "Quatsch",
+  "publish_mode": "immediate",
+  "story_length_chars": 2000,
+  "chrome_profile_dir": "D:\\.repo\\.private\\artifacts_1\\chrome_profile",
+  "history_file": "D:\\.repo\\.private\\artifacts_1\\history.json",
+  "output_dir": "D:\\.repo\\.private\\artifacts_1\\generated"
+}
