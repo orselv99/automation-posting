@@ -212,11 +212,20 @@ def discover_all_posts(blog_id: str, category_no: str = "6", max_pages: int = 35
     return all_posts
 
 from history_manager import save_post_to_monthly_history, get_all_migrated_log_nos
+from editor_style import apply_post_style, FONT_FAMILY_MAP, ALIGN_MAP
 
-def migrate_tags_for_post(page, blog_id: str, log_no: str, target_tags: list[str]) -> bool:
+def migrate_post(
+    page,
+    blog_id: str,
+    log_no: str,
+    target_tags: list[str] = None,
+    target_style: dict = None,
+    apply_tags: bool = True,
+    apply_style: bool = True
+) -> bool:
     """
     Playwright를 사용하여 단일 글의 스마트에디터 수정 페이지(Redirect=Update)로 진입한 후
-    기존 태그를 모두 삭제하고 신규 규격 태그(target_tags)를 등록한 뒤 수정 발행합니다.
+    요청된 서식 스타일(폰트, 크기, 색상, 정렬, 줄간격)과 태그를 일괄 반영하여 수정 발행합니다.
     """
     update_url = f"https://blog.naver.com/{blog_id}?Redirect=Update&logNo={log_no}"
     print(f"\n[*] 글 수정 페이지 접근: {update_url}")
@@ -230,7 +239,7 @@ def migrate_tags_for_post(page, blog_id: str, log_no: str, target_tags: list[str
             frame = f
             break
 
-    # 임시 저장 팝업 등이 뜨면 닫기
+    # 임시 저장 팝업 등이 뜨면 '취소' 클릭
     try:
         cancel_btn = frame.locator('div[data-group="popupLayer"] button.se-popup-button-cancel').first
         if cancel_btn.is_visible(timeout=2000):
@@ -239,37 +248,46 @@ def migrate_tags_for_post(page, blog_id: str, log_no: str, target_tags: list[str
     except Exception:
         pass
 
-    # 상단 '발행' 버튼 클릭하여 설정 패널 열기
-    print("[*] 상단 '발행' 버튼 클릭...")
+    # [1단계] 본문 타이포그래피 스타일 일괄 적용
+    if apply_style and target_style:
+        try:
+            apply_post_style(frame, page, target_style)
+        except Exception as se:
+            print(f"[!] 스타일 적용 중 오류 (계속 진행): {se}")
+
+    # [2단계] 상단 '발행' 버튼 클릭하여 설정 패널 열기
+    print("[*] 상단 '발행' 버튼 클릭하여 발행 설정 패널 열기...")
     pub_btn = frame.locator('button[data-click-area="tpb.publish"]').first
     pub_btn.click()
-    page.wait_for_timeout(2000)
+    page.wait_for_timeout(2500)
 
-    # 기존에 등록된 구형 태그가 있다면 삭제 버튼 클릭
-    try:
-        del_btns = frame.locator('button[class*="tag_delete"], button[class*="btn_delete"]').all()
-        for d in del_btns:
-            d.click()
-            page.wait_for_timeout(100)
-    except Exception:
-        pass
+    # [3단계] 태그 업데이트 (필요 시)
+    if apply_tags and target_tags:
+        # 기존에 등록된 구형 태그가 있다면 삭제 버튼 클릭
+        try:
+            del_btns = frame.locator('button[class*="tag_delete"], button[class*="btn_delete"]').all()
+            for d in del_btns:
+                d.click()
+                page.wait_for_timeout(100)
+        except Exception:
+            pass
 
-    # 신규 규격 태그 차례대로 입력
-    print(f"[*] 태그 등록 중: {target_tags}")
-    tag_input = frame.locator('input[class*="tag_input"]').first
-    if tag_input.is_visible(timeout=3000):
-        tag_input.click()
-        for tag in target_tags:
-            clean_tag = tag.replace("#", "").strip()
-            if clean_tag:
-                tag_input.fill(clean_tag)
-                page.keyboard.press("Enter")
-                page.wait_for_timeout(250)
-        print("[+] 태그 입력 완료")
-    else:
-        print("[!] 태그 입력 필드를 찾지 못했습니다.")
+        # 신규 규격 태그 차례대로 입력
+        print(f"[*] 태그 등록 중: {target_tags}")
+        tag_input = frame.locator('input[class*="tag_input"]').first
+        if tag_input.is_visible(timeout=3000):
+            tag_input.click()
+            for tag in target_tags:
+                clean_tag = tag.replace("#", "").strip()
+                if clean_tag:
+                    tag_input.fill(clean_tag)
+                    page.keyboard.press("Enter")
+                    page.wait_for_timeout(250)
+            print("[+] 태그 입력 완료")
+        else:
+            print("[!] 태그 입력 필드를 찾지 못했습니다.")
 
-    # 최종 수정 발행 확인 버튼 클릭
+    # [4단계] 최종 수정 발행 확인 버튼 클릭
     print("[*] 최종 수정 발행 클릭...")
     confirm_btn = frame.locator('button[data-click-area="tpb*i.publish"]').first
     if not confirm_btn.is_visible(timeout=3000):
@@ -278,39 +296,79 @@ def migrate_tags_for_post(page, blog_id: str, log_no: str, target_tags: list[str
     confirm_btn.click()
     print("[*] 수정 발행 저장 대기 중 (7초)...")
     page.wait_for_timeout(7000)
-    print(f"[+] logNo: {log_no} 태그 업데이트 완료!")
+    print(f"[+] logNo: {log_no} 수정 발행 완료!")
     return True
+
+# 하위 호환성을 위한 별칭
+migrate_tags_for_post = migrate_post
 
 def main():
     """
-    태그 일괄 마이그레이션 CLI 메인 루틴
+    태그 및 서식 스타일 통합 마이그레이션 CLI 메인 루틴
     """
-    parser = argparse.ArgumentParser(description="네이버 블로그 전체 페이지의 포스팅 태그를 일괄 마이그레이션합니다.")
+    parser = argparse.ArgumentParser(
+        description="네이버 블로그 기존 포스팅의 서식 스타일(폰트, 크기, 색상, 정렬, 줄간격) 및 태그를 일괄 마이그레이션합니다."
+    )
     parser.add_argument("--headless", action="store_true", help="브라우저 창을 띄우지 않고 백그라운드에서 실행")
     parser.add_argument("--limit", type=int, default=0, help="수정할 포스팅 최대 개수 (0 = 전체)")
-    parser.add_argument("--skip-migrated", action="store_true", default=True, help="히스토리에 이미 완료된 글 건너뛰기")
-    parser.add_argument("--dry-run", action="store_true", help="실제 블로그를 수정하지 않고 추출된 태그만 미리보기")
+    parser.add_argument("--skip-migrated", action="store_true", default=False, help="히스토리에 이미 완료된 글 건너뛰기 (기본: 전체 포스팅 재검사)")
+    parser.add_argument("--force", action="store_true", help="히스토리 등록 여부와 무관하게 모든 글에 강제 재적용")
+    parser.add_argument("--style-only", action="store_true", help="스타일(폰트/크기/색상/정렬/줄간격)만 변경하고 태그는 건드리지 않음")
+    parser.add_argument("--tags-only", action="store_true", help="태그만 변경하고 본문 서식 스타일은 건드리지 않음")
+    parser.add_argument("--dry-run", action="store_true", help="실제 블로그를 수정하지 않고 추출된 태그 및 적용될 스타일만 미리보기")
+
+    # 서식 오버라이드 옵션 (지정하지 않으면 config.json의 post_style 기본값 적용)
+    parser.add_argument("--font-family", type=str, default=None, help="폰트 지정 (기본서체, 나눔고딕, 나눔명조, 마루부리 등)")
+    parser.add_argument("--font-size", type=int, default=None, help="글자 크기 (11, 13, 15, 16, 19, 24 등)")
+    parser.add_argument("--font-color", type=str, default=None, help="글자 색상 (색상없음 또는 #000000, #333333 등 HEX)")
+    parser.add_argument("--align", type=str, default=None, help="텍스트 정렬 (left, center, right, justify)")
+    parser.add_argument("--line-height", type=int, default=None, help="줄간격 (150, 160, 170, 180, 190, 200, 210)")
+
     args = parser.parse_args()
 
     config = get_config()
     blog_id = config.get("blog_id", "sun_o_glitter")
     profile_dir = Path(config.get("chrome_profile_dir", PROJECT_ROOT / "chrome_profile"))
 
-    # 월별 히스토리 파일들에서 이미 완료된 글 번호 집합 수집
+    # 적용할 타겟 서식 스타일 구성
+    target_style = dict(config.get("post_style", {}))
+    if args.font_family:
+        target_style["font_family"] = args.font_family
+    if args.font_size:
+        target_style["font_size"] = args.font_size
+    if args.font_color:
+        target_style["font_color"] = args.font_color
+    if args.align:
+        target_style["align"] = args.align
+    if args.line_height:
+        target_style["line_height"] = args.line_height
+
+    apply_tags = not args.style_only
+    apply_style = not args.tags_only
+
+    # 히스토리에서 이미 작업된 글 ID 수집
     already_migrated_ids = get_all_migrated_log_nos()
 
-    print("=" * 70)
-    print("네이버 블로그 전체 포스팅 태그 마이그레이션 도구 (다중 페이지 지원)")
+    print("=" * 75)
+    print("네이버 블로그 포스팅 일괄 마이그레이션 도구 (스타일 & 태그 고도화)")
     print(f"블로그 ID: {blog_id}")
-    print(f"기본 태그: {BASE_TAGS}")
-    print(f"이미 완료된 포스팅 수: {len(already_migrated_ids)}편")
-    print("=" * 70)
+    print(f"적용 모드: [스타일 적용: {'ON' if apply_style else 'OFF'}] | [태그 적용: {'ON' if apply_tags else 'OFF'}]")
+    if apply_style:
+        print(f"목표 스타일: 폰트={target_style.get('font_family')}, "
+              f"크기={target_style.get('font_size')}pt, "
+              f"색상={target_style.get('font_color')}, "
+              f"정렬={target_style.get('align')}, "
+              f"줄간격={target_style.get('line_height')}%")
+    if apply_tags:
+        print(f"기본 태그: {BASE_TAGS}")
+    print(f"히스토리 기록 글 수: {len(already_migrated_ids)}편")
+    print("=" * 75)
 
     # 1단계: 순수 HTTP를 통해 전체 페이지 글 목록 수집
     all_posts = discover_all_posts(blog_id)
 
-    # 이미 처리된 글 필터링
-    if args.skip_migrated:
+    # 필터링: skip_migrated이고 force가 아닐 때만 건너뛰기
+    if args.skip_migrated and not args.force:
         pending_posts = [p for p in all_posts if p['logNo'] not in already_migrated_ids]
     else:
         pending_posts = all_posts
@@ -321,7 +379,9 @@ def main():
     print(f"\n[*] 업데이트 대상 글: 총 {len(pending_posts)}편 (전체 {len(all_posts)}편 중)")
     for idx, post in enumerate(pending_posts, 1):
         target_tags = PRESET_TAGS.get(post['logNo'], generate_specific_tags(post['title']))
-        print(f"  {idx:2d}. [{post['logNo']}] {post['title']} -> {target_tags}")
+        print(f"  {idx:2d}. [{post['logNo']}] {post['title']}")
+        if apply_tags:
+            print(f"      └ 태그: {target_tags}")
 
     # dry-run 모드일 경우 미리보기만 출력하고 안전하게 종료
     if args.dry_run:
@@ -329,7 +389,7 @@ def main():
         return
 
     if not pending_posts:
-        print("\n[+] 업데이트할 포스팅이 없습니다. 모든 포스팅이 이미 최신 태그로 완료되었습니다.")
+        print("\n[+] 업데이트할 포스팅이 없습니다.")
         return
 
     # 2단계: Playwright 브라우저를 구동하여 순차적으로 글 수정 및 월별 히스토리 영속화
@@ -351,9 +411,17 @@ def main():
         for idx, post in enumerate(pending_posts, 1):
             log_no = post['logNo']
             target_tags = PRESET_TAGS.get(log_no, generate_specific_tags(post['title']))
-            print(f"\n>>> [{idx}/{len(pending_posts)}] '{post['title']}' 진행 중...")
+            print(f"\n>>> [{idx}/{len(pending_posts)}] '{post['title']}' (logNo: {log_no}) 작업 시작...")
             try:
-                if migrate_tags_for_post(page, blog_id, log_no, target_tags):
+                if migrate_post(
+                    page=page,
+                    blog_id=blog_id,
+                    log_no=log_no,
+                    target_tags=target_tags,
+                    target_style=target_style,
+                    apply_tags=apply_tags,
+                    apply_style=apply_style
+                ):
                     success_count += 1
                     # 수정 완료 즉시 해당 연월의 히스토리 파일에 저장하여 중단 대비
                     save_post_to_monthly_history({
@@ -361,15 +429,16 @@ def main():
                         "date": post.get("date"),
                         "title": post['title'],
                         "tags": target_tags,
+                        "style": target_style,
                         "migrated_at": time.strftime("%Y-%m-%d %H:%M:%S")
                     })
                     already_migrated_ids.add(log_no)
             except Exception as e:
                 print(f"[!] '{post['title']}' 업데이트 실패: {e}")
 
-        print("\n" + "=" * 70)
+        print("\n" + "=" * 75)
         print(f"[+] 마이그레이션 완료: 총 {len(pending_posts)}편 중 {success_count}편 업데이트 성공!")
-        print("=" * 70)
+        print("=" * 75)
 
         context.close()
 
