@@ -2,15 +2,19 @@
 Naver Blog Previous Posts Tag Migration Script (Multi-Page Support)
 Discovers all existing posts in Quatsch category across all pages and updates their tags to:
 - Base tags: #판타지소설, #단편소설, #환상문학
-- Specific tags: 2~3 tailored tags based on post title
+- Specific tags: 2 tailored tags based on post title
 """
 import re
 import sys
 import json
 import time
+import html
+import urllib.request
 import argparse
 from pathlib import Path
 from playwright.sync_api import sync_playwright
+
+from config_loader import get_config, PROJECT_ROOT
 
 # Ensure UTF-8 output on Windows
 if sys.stdout.encoding != 'utf-8':
@@ -21,6 +25,7 @@ if sys.stdout.encoding != 'utf-8':
 
 BASE_TAGS = ["#판타지소설", "#단편소설", "#환상문학"]
 
+# Verified presets
 PRESET_TAGS = {
     "224446246932": ["#판타지소설", "#단편소설", "#환상문학", "#별빛의매듭", "#방직공의탑"],
     "224446204944": ["#판타지소설", "#단편소설", "#환상문학", "#양치기와비구름", "#날씨판타지"],
@@ -29,49 +34,72 @@ PRESET_TAGS = {
     "224443399456": ["#판타지소설", "#단편소설", "#환상문학", "#별감정사", "#가짜운석"]
 }
 
+VERB_STRIP_REGEX = (
+    r'^.*?(?:거래하는|빚는|벼리는|감정하는|잇는|담는|짜\s*넣는|타는|열리는|쓰는|곱씹는|치는|'
+    r'고쳐\s*쓰는|파는|고치는|증류하는|다림질하는|뛰는|청소하는|낚는|먹는|울리는|다듬는|'
+    r'깁는|삼는|지키는|떠난|수확하는|덜어내는|움직이는|자라는|지어지지\s*않은|걸어야만\s*열리는|'
+    r'몰고\s*다니는|몰고다니는|떨어지는|찾아서)\s+'
+)
+
+ADJ_STRIP_REGEX = (
+    r'^(?:아직|이미|스스로|뒤로|잠든|밤마다|매일|내려가기만\s*하는|3초\s*먼저|'
+    r'오만한|시끄러운|낭패\s*본|말\s*많은|늙은|굴러떨어진|삼천\s*살의|비뚤어진|구운|'
+    r'구겨진|뚱뚱한|잃어버린|차가운|노래하는|공중에\s*뜬|도망친|결백한|멈춰\s*선|'
+    r'가짜|고집불통|허공에\s*뜬|구부러진|뒤늦은|말문\s*막힌|노인|엎질러진|은빛|저주받은|완벽한|가장\s*무거운)\s+'
+)
+
+DISCARD_WORDS = {
+    '비밀', '참사', '신청', '접수', '불합격', '적발', '감사', '불량', '의무화', '분쟁',
+    '청구서', '비극', '한마디', '상담', '조절', '정기', '명령', '규제', '착용', '보안경',
+    '마력의', '4항의', '3장', '제3장', '5G', '일흔일곱', '번의', '경고', '잉여', '완벽한'
+}
+
+def clean_chunk(text: str) -> str:
+    text = re.sub(VERB_STRIP_REGEX, '', text)
+    text = re.sub(ADJ_STRIP_REGEX, '', text)
+    # Strip trailing particles like '을', '를', '과', '와', '에', '로'
+    text = re.sub(r'(?<=[가-힣])(?:을|를|과|와|에|로)$', '', text)
+    # Strip spaces and non-word characters
+    clean = re.sub(r'[^\w가-힣]', '', text)
+    # If the clean chunk is longer than 8 chars, shorten or extract the core noun
+    if len(clean) > 8:
+        m = re.search(r'의([가-힣]{2,6})$', clean)
+        if m:
+            clean = m.group(1)
+        elif len(clean) > 8:
+            clean = clean[-6:]
+    return clean
+
 def generate_specific_tags(title: str) -> list[str]:
     """
-    Extracts 2 meaningful fantasy noun phrases from Korean title,
+    Extracts 2 tailored, meaningful fantasy noun phrases from Korean title,
     filtering out adverbs, verbs, and particles.
     """
-    verb_strip = (
-        r'^.*?(?:거래하는|빚는|벼리는|감정하는|잇는|담는|짜\s*넣는|타는|열리는|쓰는|곱씹는|치는|'
-        r'고쳐\s*쓰는|파는|고치는|증류하는|다림질하는|뛰는|청소하는|낚는|먹는|울리는|다듬는|'
-        r'깁는|삼는|지키는|떠난|수확하는|덜어내는|움직이는|자라는|지어지지\s*않은|걸어야만\s*열리는|'
-        r'몰고\s*다니는|몰고다니는)\s+'
-    )
-    adj_strip = (
-        r'^(?:아직|이미|스스로|뒤로|잠든|밤마다|매일|내려가기만\s*하는|3초\s*먼저|'
-        r'오만한|시끄러운|낭패\s*본|말\s*많은|늙은|굴러떨어진|삼천\s*살의|비뚤어진|구운|'
-        r'구겨진|뚱뚱한|잃어버린|차가운|노래하는|공중에\s*뜬|도망친|결백한|멈춰\s*선|'
-        r'가짜|고집불통|허공에\s*뜬|구부러진|뒤늦은|말문\s*막힌|노인|엎질러진|은빛)\s+'
-    )
-
-    parts = re.split(r'(?:와|과)\s+', title, maxsplit=1)
+    clean_title = re.sub(r'\(.*?\)', '', title).strip()
+    parts = re.split(r'(?:와|과)\s+', clean_title, maxsplit=1)
     specific_tags = []
-
-    def clean_chunk(text: str) -> str:
-        text = re.sub(verb_strip, '', text)
-        text = re.sub(adj_strip, '', text)
-        text = re.sub(r'^[은는이가을를의과와]\s*', '', text)
-        clean = re.sub(r'[^\w가-힣]', '', text)
-        return clean
 
     if len(parts) == 2:
         n1 = clean_chunk(parts[0])
         n2 = clean_chunk(parts[1])
-        if n1 and len(n1) >= 2:
+        if n1 and len(n1) >= 2 and n1 not in DISCARD_WORDS and f"#{n1}" not in specific_tags:
             specific_tags.append(f"#{n1}")
-        if n2 and len(n2) >= 2:
+        if n2 and len(n2) >= 2 and n2 not in DISCARD_WORDS and f"#{n2}" not in specific_tags:
             specific_tags.append(f"#{n2}")
 
-    # Fallback if specific tags < 2
+    # Fallback if specific tags < 2 (e.g. titles without '와/과')
     if len(specific_tags) < 2:
-        words = [w for w in re.split(r'\s+', title) if len(w) >= 2]
-        for w in reversed(words):
-            cw = re.sub(r'[^\w가-힣]', '', w)
-            if cw and len(cw) >= 2 and f"#{cw}" not in specific_tags:
-                specific_tags.append(f"#{cw}")
+        words = clean_title.split()
+        filtered_words = []
+        for w in words:
+            w = re.sub(r'^[^\w가-힣]+|[^\w가-힣]+$', '', w)
+            w = re.sub(r'(?:의|은|는|이|가|을|를|과|와|에|로|에서)$', '', w)
+            if len(w) >= 2 and w not in DISCARD_WORDS:
+                filtered_words.append(w)
+
+        for w in filtered_words:
+            if f"#{w}" not in specific_tags:
+                specific_tags.append(f"#{w}")
             if len(specific_tags) >= 2:
                 break
 
@@ -82,7 +110,69 @@ def generate_specific_tags(title: str) -> list[str]:
 
     return tags
 
-def migrate_tags_for_post(page, editor_frame, blog_id: str, log_no: str, target_tags: list[str]) -> bool:
+def discover_all_posts(blog_id: str, category_no: str = "6", max_pages: int = 35) -> list[dict]:
+    """
+    Crawls all pagination pages in Quatsch category via Naver PostList API to gather all posts.
+    Uses pure HTTP requests to extract socialPluginInfoJson accurately without browser iframe issues.
+    """
+    print(f"[*] '{blog_id}' 블로그 카테고리(no={category_no})의 전체 포스팅 탐색 시작...")
+    all_posts = []
+    seen_log_nos = set()
+
+    for pno in range(1, max_pages + 1):
+        url = f"https://blog.naver.com/PostList.naver?blogId={blog_id}&categoryNo={category_no}&from=postList&currentPage={pno}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                text = resp.read().decode('utf-8', errors='ignore')
+                m = re.search(r'id=["\']socialPluginInfoJson["\'][^>]*>(.*?)</', text)
+                new_on_page = 0
+                if m:
+                    raw = html.unescape(m.group(1))
+                    items = json.loads(raw)
+                    for it in items:
+                        lno = str(it.get('logNo'))
+                        title = it.get('title', '').strip()
+                        if lno and lno not in seen_log_nos:
+                            seen_log_nos.add(lno)
+                            all_posts.append({'logNo': lno, 'title': title})
+                            new_on_page += 1
+                if new_on_page == 0 and pno > 1:
+                    print(f"[*] 총 {pno - 1}개 페이지에서 {len(all_posts)}편의 글 발견 완료!")
+                    break
+        except Exception as e:
+            print(f"[!] {pno}페이지 탐색 중 오류: {e}")
+            break
+
+    return all_posts
+
+def save_post_to_history(history_file: Path, log_no: str, title: str, tags: list[str]):
+    """Persists a migrated post directly into history.json"""
+    hdata = {"posts": []}
+    if history_file.exists():
+        try:
+            with open(history_file, "r", encoding="utf-8") as f:
+                hdata = json.load(f)
+        except Exception:
+            pass
+
+    posts = hdata.setdefault("posts", [])
+    existing = next((p for p in posts if p.get("logNo") == log_no), None)
+    if existing:
+        existing["tags"] = tags
+        existing["migrated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        posts.append({
+            "logNo": log_no,
+            "title": title,
+            "tags": tags,
+            "migrated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        })
+
+    with open(history_file, "w", encoding="utf-8") as f:
+        json.dump(hdata, f, ensure_ascii=False, indent=2)
+
+def migrate_tags_for_post(page, blog_id: str, log_no: str, target_tags: list[str]) -> bool:
     """Updates tags for a single post using SmartEditor Update URL"""
     update_url = f"https://blog.naver.com/{blog_id}?Redirect=Update&logNo={log_no}"
     print(f"\n[*] 글 수정 페이지 접근: {update_url}")
@@ -146,55 +236,18 @@ def migrate_tags_for_post(page, editor_frame, blog_id: str, log_no: str, target_
     print(f"[+] logNo: {log_no} 태그 업데이트 완료!")
     return True
 
-def discover_all_posts(page, blog_id: str, max_pages: int = 15) -> list[dict]:
-    """Crawls all pagination pages in Quatsch category to gather all posts"""
-    print(f"[*] Quatsch 카테고리의 모든 페이지(최대 {max_pages}페이지) 탐색 시작...")
-    all_posts = {}
-
-    for pno in range(1, max_pages + 1):
-        url = f"https://blog.naver.com/PostList.naver?blogId={blog_id}&categoryNo=6&from=postList&currentPage={pno}"
-        page.goto(url, wait_until="domcontentloaded")
-        page.wait_for_timeout(2000)
-
-        frame = page
-        for f in page.frames:
-            if "mainFrame" in f.name:
-                frame = f
-                break
-
-        count_before = len(all_posts)
-        for a in frame.locator('a').all():
-            href = a.get_attribute('href') or ''
-            m = re.search(r"logNo=(\d+)", href)
-            if m:
-                lno = m.group(1)
-                txt = a.inner_text().strip()
-                if txt and len(txt) > 2 and lno not in all_posts:
-                    all_posts[lno] = txt
-
-        new_found = len(all_posts) - count_before
-        if new_found == 0 and pno > 3:
-            # Reached end of pagination
-            break
-
-    result = [{'logNo': k, 'title': v} for k, v in all_posts.items()]
-    print(f"[+] 총 {len(result)}편의 글 발견 완료!")
-    return result
-
 def main():
     parser = argparse.ArgumentParser(description="Migrate tags across all pages of Naver Blog posts")
     parser.add_argument("--headless", action="store_true", help="Run browser in headless mode")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of posts to migrate (0 = all)")
     parser.add_argument("--skip-migrated", action="store_true", default=True, help="Skip posts already in history.json")
+    parser.add_argument("--dry-run", action="store_true", help="Only preview discovered posts and generated tags without modifying blog")
     args = parser.parse_args()
 
-    config_path = Path(r"D:\.repo\.private\artifacts_1\config.json")
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-
+    config = get_config()
     blog_id = config.get("blog_id", "sun_o_glitter")
-    profile_dir = Path(config.get("chrome_profile_dir", r"D:\.repo\.private\artifacts_1\chrome_profile"))
-    history_file = Path(config.get("history_file", r"D:\.repo\.private\artifacts_1\history.json"))
+    profile_dir = Path(config.get("chrome_profile_dir", PROJECT_ROOT / "chrome_profile"))
+    history_file = Path(config.get("history_file", PROJECT_ROOT / "history.json"))
 
     already_migrated_ids = set()
     if history_file.exists():
@@ -212,6 +265,33 @@ def main():
     print(f"이미 완료된 포스팅 수: {len(already_migrated_ids)}편")
     print("=" * 70)
 
+    # Step 1: Discover all posts across all pages reliably via HTTP
+    all_posts = discover_all_posts(blog_id)
+
+    # Filter out already migrated posts if requested
+    if args.skip_migrated:
+        pending_posts = [p for p in all_posts if p['logNo'] not in already_migrated_ids]
+    else:
+        pending_posts = all_posts
+
+    if args.limit > 0:
+        pending_posts = pending_posts[:args.limit]
+
+    print(f"\n[*] 업데이트 대상 글: 총 {len(pending_posts)}편 (전체 {len(all_posts)}편 중)")
+    for idx, post in enumerate(pending_posts, 1):
+        target_tags = PRESET_TAGS.get(post['logNo'], generate_specific_tags(post['title']))
+        print(f"  {idx:2d}. [{post['logNo']}] {post['title']} -> {target_tags}")
+
+    if args.dry_run:
+        print("\n[안내] --dry-run 모드이므로 브라우저를 통한 실제 수정을 진행하지 않고 종료합니다.")
+        return
+
+    if not pending_posts:
+        print("\n[+] 업데이트할 포스팅이 없습니다. 모든 포스팅이 이미 최신 태그로 완료되었습니다.")
+        return
+
+    # Step 2: Migrate via Playwright
+    success_count = 0
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(
             user_data_dir=str(profile_dir),
@@ -226,34 +306,14 @@ def main():
 
         page = context.new_page()
 
-        # Step 1: Discover all posts across all pages
-        all_posts = discover_all_posts(page, blog_id)
-
-        # Filter out already migrated posts if requested
-        if args.skip_migrated:
-            pending_posts = [p for p in all_posts if p['logNo'] not in already_migrated_ids]
-        else:
-            pending_posts = all_posts
-
-        if args.limit > 0:
-            pending_posts = pending_posts[:args.limit]
-
-        print(f"\n[*] 이번 실행에서 업데이트할 글: 총 {len(pending_posts)}편")
-        for idx, post in enumerate(pending_posts, 1):
-            target_tags = PRESET_TAGS.get(post['logNo'], generate_specific_tags(post['title']))
-            print(f"  {idx}. [{post['logNo']}] {post['title']} -> {target_tags}")
-
-        # Step 2: Migrate
-        success_count = 0
-        frame = page
         for idx, post in enumerate(pending_posts, 1):
             log_no = post['logNo']
             target_tags = PRESET_TAGS.get(log_no, generate_specific_tags(post['title']))
             print(f"\n>>> [{idx}/{len(pending_posts)}] '{post['title']}' 진행 중...")
             try:
-                if migrate_tags_for_post(page, frame, blog_id, log_no, target_tags):
+                if migrate_tags_for_post(page, blog_id, log_no, target_tags):
                     success_count += 1
-                    # Record to history.json
+                    save_post_to_history(history_file, log_no, post['title'], target_tags)
                     already_migrated_ids.add(log_no)
             except Exception as e:
                 print(f"[!] '{post['title']}' 업데이트 실패: {e}")

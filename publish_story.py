@@ -79,23 +79,15 @@ def parse_story_markdown(file_path: Path):
     # Separate into base tags and specific tags
     specific_tags = [t for t in extracted_tags if t not in BASE_TAGS and t not in ["#Quatsch", "#웹소설", "#소설연재"]]
     if not specific_tags:
-        # Generate smart specific tags from title if none provided
-        verb_strip = r'^.*?(?:거래하는|빚는|벼리는|감정하는|잇는|담는|짜\s*넣는|타는|열리는|쓰는|곱씹는|치는|고쳐\s*쓰는|파는|고치는|증류하는|다림질하는|뛰는|청소하는|낚는|먹는|울리는|다듬는|깁는|삼는|지키는|떠난|수확하는|덜어내는|움직이는|자라는|지어지지\s*않은|걸어야만\s*열리는|몰고\s*다니는)\s+'
-        adj_strip = r'^(?:아직|이미|스스로|뒤로|잠든|밤마다|매일|내려가기만\s*하는|3초\s*먼저|오만한|시끄러운|낭패\s*본|말\s*많은|늙은|굴러떨어진|삼천\s*살의|비뚤어진|구운|구겨진|뚱뚱한|잃어버린|차가운|노래하는|공중에\s*뜬|도망친|결백한|멈춰\s*선|가짜|고집불통|허공에\s*뜬|구부러진|뒤늦은|말문\s*막힌|노인|엎질러진|은빛)\s+'
-        parts = re.split(r'(?:와|과)\s+', title, maxsplit=1)
-        for p in parts:
-            p_clean = re.sub(verb_strip, '', p)
-            p_clean = re.sub(adj_strip, '', p_clean)
-            p_clean = re.sub(r'^[은는이가을를의과와]\s*', '', p_clean)
-            c = re.sub(r'[^\w가-힣]', '', p_clean)
-            if c and len(c) >= 2 and f"#{c}" not in specific_tags:
-                specific_tags.append(f"#{c}")
-
-    # Final tags: 3 base tags + 2~3 specific tags
-    final_tags = list(BASE_TAGS)
-    for stag in specific_tags[:3]:
-        if stag not in final_tags:
-            final_tags.append(stag)
+        # Generate smart specific tags from title using the unified generator
+        from migrate_tags import generate_specific_tags
+        final_tags = generate_specific_tags(title)
+    else:
+        # Combine provided specific tags with base tags
+        final_tags = list(BASE_TAGS)
+        for stag in specific_tags[:3]:
+            if stag not in final_tags:
+                final_tags.append(stag)
 
     # 3. Extract Story Section
     story_section = content
