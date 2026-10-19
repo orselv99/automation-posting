@@ -4,6 +4,28 @@
 
 ---
 
+## 🌐 [LIVE RUNTIME] 인터랙티브 웹 샌드박스 (GitHub Pages)
+
+포트폴리오 및 기술 블로그([orselv99.github.io/artifacts](https://orselv99.github.io/artifacts/))의 **`[LIVE RUNTIME]`** 컨테이너에 임베드하여, 방문자가 브라우저에서 직접 스마트에디터 서식 제어와 한글 형태소 태깅(NLP) 알고리즘을 실시간 체험할 수 있는 웹 샌드박스입니다.
+
+* 🔗 **라이브 데모 URL**: [https://orselv99.github.io/automation-posting/](https://orselv99.github.io/automation-posting/)
+* 🎨 **에디터 서식 에뮬레이터**: 폰트(마루부리, 기본서체 등), 크기(11~24pt), 색상(팔레트 & 커스텀 HEX), 정렬, 줄간격 실시간 프리뷰
+* ⚡ **한글 형태소 & 정규식 태거**: 조사/어미 제거(`VERB_STRIP_REGEX`) 및 후방탐색(`(?<=[가-힣]{2})`) 실시간 파이프라인 시각화
+* 📚 **70편 연재 소설 아카이브**: 월별 필터링, 실시간 검색, 원클릭 에디터 로드 기능 제공
+
+---
+
+## 📝 개발 스토리 & 기술 블로그 연재 (3부작)
+
+* 📄 **[1편: AI 판타지 단편 소설과 에칭 삽화 연재 파이프라인 (Gemini, Imagen 3, Playwright)](./blog_posts/01_naver_blog_automation_playwright.md)**
+  * 부수입과 창작 자동화의 동기, 멀티모달 프롬프트 엔지니어링, Selenium 대신 Playwright를 선택한 이유
+* 📄 **[2편: 70편의 글을 마이그레이션하다 만난 복병들 (iframe, 한글 형태소, 스마트에디터 해킹기)](./blog_posts/02_naver_blog_migration_and_nlp.md)**
+  * 2페이지 멈춤 현상과 HTTP 리버스 엔지니어링(60배 속도 향상), 정규식 후방탐색 태거, 툴바 컬러피커 DOM 제어
+* 📄 **[3편: GitHub Actions와 웹 시뮬레이터로 완성하는 무인 파이프라인 (보안, 내결함성, LIVE RUNTIME)](./blog_posts/03_naver_blog_github_actions_and_runtime.md)**
+  * 클라우드 캡차 우회, 계층형 시크릿 보안, 3단계 장애 방어벽, 그리고 포트폴리오를 위한 웹 샌드박스 개발기
+
+---
+
 ## 📁 주요 구성 파일
 
 * `prompt_spec.md`: 고전 중세 다크판타지/신비주의 문학 창작 명세서 (테마 A~J 순환 및 금지어/서식 규칙)
