@@ -4,6 +4,7 @@
   "publish_mode": "immediate",
   "story_length_chars": 2000,
   "chrome_profile_dir": "${CHROME_PROFILE_DIR}",
+  "history_dir": "${HISTORY_DIR}",
   "history_file": "${HISTORY_FILE}",
   "output_dir": "${OUTPUT_DIR}",
   "email_alert": {

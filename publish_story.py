@@ -170,6 +170,21 @@ def main():
                     archive_to_google_drive(title, full_content, str(image_path))
                 except Exception as gerr:
                     print(f"[-] Google Drive 아카이빙 알림 (발행은 정상 완료됨): {gerr}")
+
+                # Save to monthly history: history/{yyyy-mm}.json
+                try:
+                    from history_manager import save_post_to_monthly_history
+                    save_post_to_monthly_history({
+                        "date": time.strftime("%Y-%m-%d"),
+                        "title": title,
+                        "tags": tags,
+                        "story_file": str(story_path),
+                        "image_file": str(image_path),
+                        "published_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                    })
+                    print(f"[+] 월별 히스토리(history/{{yyyy-mm}}.json)에 기록 완료!")
+                except Exception as herr:
+                    print(f"[-] 히스토리 기록 알림: {herr}")
                 return
             else:
                 last_error = result.get("error", "알 수 없는 발행 오류")

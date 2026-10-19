@@ -27,6 +27,7 @@ DEFAULT_ENV = {
     "EMAIL_SENDER": "orselv99@gmail.com",
     "GMAIL_APP_PASSWORD": "",
     "CHROME_PROFILE_DIR": "./chrome_profile",
+    "HISTORY_DIR": "./history",
     "HISTORY_FILE": "./history.json",
     "OUTPUT_DIR": "./generated",
     "GOOGLE_DRIVE_FOLDER": "__generated__/gemini-hobby-fantasy-scene",
@@ -95,6 +96,9 @@ def load_config(config_path: str | Path = None) -> dict:
     # Normalize paths to absolute paths
     chrome_profile_raw = config.get("chrome_profile_dir") or os.environ.get("CHROME_PROFILE_DIR", "./chrome_profile")
     config["chrome_profile_dir"] = str(resolve_path(chrome_profile_raw))
+
+    history_dir_raw = config.get("history_dir") or os.environ.get("HISTORY_DIR", "./history")
+    config["history_dir"] = str(resolve_path(history_dir_raw))
 
     history_file_raw = config.get("history_file") or os.environ.get("HISTORY_FILE", "./history.json")
     config["history_file"] = str(resolve_path(history_file_raw))

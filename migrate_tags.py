@@ -146,31 +146,7 @@ def discover_all_posts(blog_id: str, category_no: str = "6", max_pages: int = 35
 
     return all_posts
 
-def save_post_to_history(history_file: Path, log_no: str, title: str, tags: list[str]):
-    """Persists a migrated post directly into history.json"""
-    hdata = {"posts": []}
-    if history_file.exists():
-        try:
-            with open(history_file, "r", encoding="utf-8") as f:
-                hdata = json.load(f)
-        except Exception:
-            pass
-
-    posts = hdata.setdefault("posts", [])
-    existing = next((p for p in posts if p.get("logNo") == log_no), None)
-    if existing:
-        existing["tags"] = tags
-        existing["migrated_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-    else:
-        posts.append({
-            "logNo": log_no,
-            "title": title,
-            "tags": tags,
-            "migrated_at": time.strftime("%Y-%m-%d %H:%M:%S")
-        })
-
-    with open(history_file, "w", encoding="utf-8") as f:
-        json.dump(hdata, f, ensure_ascii=False, indent=2)
+from history_manager import save_post_to_monthly_history, get_all_migrated_log_nos
 
 def migrate_tags_for_post(page, blog_id: str, log_no: str, target_tags: list[str]) -> bool:
     """Updates tags for a single post using SmartEditor Update URL"""
@@ -247,16 +223,8 @@ def main():
     config = get_config()
     blog_id = config.get("blog_id", "sun_o_glitter")
     profile_dir = Path(config.get("chrome_profile_dir", PROJECT_ROOT / "chrome_profile"))
-    history_file = Path(config.get("history_file", PROJECT_ROOT / "history.json"))
 
-    already_migrated_ids = set()
-    if history_file.exists():
-        try:
-            with open(history_file, "r", encoding="utf-8") as f:
-                hdata = json.load(f)
-                already_migrated_ids = {p.get("logNo") for p in hdata.get("posts", []) if p.get("logNo")}
-        except Exception:
-            pass
+    already_migrated_ids = get_all_migrated_log_nos()
 
     print("=" * 70)
     print("네이버 블로그 전체 포스팅 태그 마이그레이션 도구 (다중 페이지 지원)")
@@ -313,7 +281,12 @@ def main():
             try:
                 if migrate_tags_for_post(page, blog_id, log_no, target_tags):
                     success_count += 1
-                    save_post_to_history(history_file, log_no, post['title'], target_tags)
+                    save_post_to_monthly_history({
+                        "logNo": log_no,
+                        "title": post['title'],
+                        "tags": target_tags,
+                        "migrated_at": time.strftime("%Y-%m-%d %H:%M:%S")
+                    })
                     already_migrated_ids.add(log_no)
             except Exception as e:
                 print(f"[!] '{post['title']}' 업데이트 실패: {e}")
