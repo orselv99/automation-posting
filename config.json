@@ -13,5 +13,11 @@
     "smtp_port": 587,
     "sender_email": "orselv99@gmail.com",
     "app_password": ""
+  },
+  "google_drive": {
+    "enabled": true,
+    "folder_path": "__generated__/gemini-hobby-fantasy-scene",
+    "local_mount_path": "",
+    "convert_to_google_doc": true
   }
 }

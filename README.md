@@ -14,6 +14,8 @@
 * `publish_story.py`: 3회 재시도 루프와 최종 실패 시 이메일 알림(Fallback)이 내장된 블로그 발행기
 * `email_notifier.py`: 3회 연속 실패 시 `[gemini-automation-failed] {스케쥴 제목}` 메일 발송 및 로그 기록기
 * `migrate_tags.py`: 블로그 내 기존 이전 글들을 검색하여 신규 태그 규칙에 맞게 일괄 업데이트하는 마이그레이션 도구
+* `gdrive_archiver.py`: Google Drive의 `__generated__/gemini-hobby-fantasy-scene` 경로에 문서를 자동 생성/동기화하는 아카이버
+* `gdrive_auth.py`: Google Drive API 1회 인증 도구
 
 ---
 

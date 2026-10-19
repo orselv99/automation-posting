@@ -12,3 +12,7 @@ chrome_profile/
 # Generated artifacts & logs
 generated/
 *.log
+
+# Google OAuth tokens & secrets
+gdrive_token.json
+client_secret.json

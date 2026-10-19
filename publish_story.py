@@ -163,6 +163,13 @@ def main():
             )
             if result.get("status") == "success":
                 print(f"\n[+] [성공] {attempt}번째 시도에서 발행이 성공적으로 완료되었습니다!")
+                # Archive to Google Drive: __generated__/gemini-hobby-fantasy-scene
+                try:
+                    from gdrive_archiver import archive_to_google_drive
+                    full_content = f"{part1}\n\n[삽화]\n\n{part2}\n\n태그: {' '.join(tags)}"
+                    archive_to_google_drive(title, full_content, str(image_path))
+                except Exception as gerr:
+                    print(f"[-] Google Drive 아카이빙 알림 (발행은 정상 완료됨): {gerr}")
                 return
             else:
                 last_error = result.get("error", "알 수 없는 발행 오류")
