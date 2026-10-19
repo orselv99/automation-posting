@@ -61,12 +61,21 @@ def save_post_to_monthly_history(post_data: dict, year_month: str = None) -> Pat
     Automatically resolves year_month from post date or defaults to current month.
     """
     if not year_month:
-        date_val = post_data.get("date") or post_data.get("migrated_at") or ""
+        date_val = post_data.get("date") or ""
         m = re.search(r"(\d{4}-\d{2})", str(date_val))
         if m:
             year_month = m.group(1)
         else:
-            year_month = get_current_year_month()
+            migrated_val = post_data.get("migrated_at") or ""
+            m_mig = re.search(r"(\d{4}-\d{2})", str(migrated_val))
+            if m_mig:
+                year_month = m_mig.group(1)
+            else:
+                year_month = get_current_year_month()
+
+    # Guarantee date field is always present
+    if not post_data.get("date"):
+        post_data["date"] = f"{year_month}-01"
 
     hdata = load_monthly_history(year_month)
     posts = hdata.setdefault("posts", [])
@@ -82,6 +91,23 @@ def save_post_to_monthly_history(post_data: dict, year_month: str = None) -> Pat
     target_file = get_monthly_history_file(year_month)
     with open(target_file, "w", encoding="utf-8") as f:
         json.dump(hdata, f, ensure_ascii=False, indent=2)
+
+    # If log_no existed in another month's file due to previous misclassification, remove it
+    if log_no:
+        hdir = get_history_dir()
+        for other_file in hdir.glob("????-??.json"):
+            if other_file.name != f"{year_month}.json":
+                try:
+                    with open(other_file, "r", encoding="utf-8") as of:
+                        odata = json.load(of)
+                    oposts = odata.get("posts", [])
+                    new_oposts = [p for p in oposts if str(p.get("logNo")) != str(log_no)]
+                    if len(new_oposts) != len(oposts):
+                        odata["posts"] = new_oposts
+                        with open(other_file, "w", encoding="utf-8") as of:
+                            json.dump(odata, of, ensure_ascii=False, indent=2)
+                except Exception:
+                    pass
 
     return target_file
 

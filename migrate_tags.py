@@ -13,7 +13,7 @@ import urllib.request
 import argparse
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-
+from datetime import datetime
 from config_loader import get_config, PROJECT_ROOT
 
 # Ensure UTF-8 output on Windows
@@ -125,18 +125,44 @@ def discover_all_posts(blog_id: str, category_no: str = "6", max_pages: int = 35
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 text = resp.read().decode('utf-8', errors='ignore')
+
+                # 1. Get titles and logNos from socialPluginInfoJson
                 m = re.search(r'id=["\']socialPluginInfoJson["\'][^>]*>(.*?)</', text)
-                new_on_page = 0
+                page_items = {}
                 if m:
                     raw = html.unescape(m.group(1))
                     items = json.loads(raw)
                     for it in items:
-                        lno = str(it.get('logNo'))
-                        title = it.get('title', '').strip()
-                        if lno and lno not in seen_log_nos:
-                            seen_log_nos.add(lno)
-                            all_posts.append({'logNo': lno, 'title': title})
-                            new_on_page += 1
+                        page_items[str(it.get('logNo'))] = it.get('title', '').strip()
+
+                # 2. Extract publication dates for each logNo on this page
+                date_pairs = re.findall(r'class=[\"\']se_publishDate[^\"\']*[\"\']\s*>([^<]+)<.*?copyBtn_(\d+)', text, re.DOTALL)
+                date_map = {}
+                today_str = datetime.now().strftime("%Y-%m-%d")
+
+                for raw_date, lno in date_pairs:
+                    raw_date = raw_date.strip()
+                    m_date = re.search(r'(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})', raw_date)
+                    if m_date:
+                        y, mo, d = m_date.groups()
+                        date_map[lno] = f"{int(y):04d}-{int(mo):02d}-{int(d):02d}"
+                    elif any(kw in raw_date for kw in ['시간', '분', '초', '방금', '전']):
+                        date_map[lno] = today_str
+                    else:
+                        date_map[lno] = today_str
+
+                new_on_page = 0
+                for lno, title in page_items.items():
+                    if lno not in seen_log_nos:
+                        seen_log_nos.add(lno)
+                        post_date = date_map.get(lno, today_str)
+                        all_posts.append({
+                            'logNo': lno,
+                            'title': title,
+                            'date': post_date
+                        })
+                        new_on_page += 1
+
                 if new_on_page == 0 and pno > 1:
                     print(f"[*] 총 {pno - 1}개 페이지에서 {len(all_posts)}편의 글 발견 완료!")
                     break
@@ -283,6 +309,7 @@ def main():
                     success_count += 1
                     save_post_to_monthly_history({
                         "logNo": log_no,
+                        "date": post.get("date"),
                         "title": post['title'],
                         "tags": target_tags,
                         "migrated_at": time.strftime("%Y-%m-%d %H:%M:%S")
