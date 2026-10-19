@@ -11,6 +11,7 @@ chrome_profile/
 
 # Generated artifacts & logs
 generated/
+__generated__/
 *.log
 
 # Google OAuth tokens & secrets
