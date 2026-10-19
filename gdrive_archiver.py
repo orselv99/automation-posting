@@ -167,10 +167,10 @@ def archive_to_google_drive(
             print(f"[*] {wait_time}초 대기 후 Google Drive 업로드 재시도...")
             time.sleep(wait_time)
 
-    # All 3 attempts failed: trigger email alert
+    recipient = cfg.get("email_alert", {}).get("recipient", "configured recipient")
     print("\n" + "!" * 70)
     print(f"[!] Google Drive 아카이빙이 {max_retries}회 연속 실패하였습니다.")
-    print("[*] 실패 알림 메일을 발송합니다: orselv99@gmail.com")
+    print(f"[*] 실패 알림 메일을 발송합니다: {recipient}")
     print("!" * 70 + "\n")
 
     send_failure_email(
