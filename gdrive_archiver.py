@@ -95,6 +95,11 @@ def archive_to_google_drive(
         from googleapiclient.http import MediaIoBaseUpload, MediaFileUpload
 
         creds = Credentials.from_authorized_user_file(str(token_file), SCOPES)
+        if creds and creds.expired and creds.refresh_token:
+            from google.auth.transport.requests import Request
+            creds.refresh(Request())
+            with open(token_file, "w", encoding="utf-8") as f:
+                f.write(creds.to_json())
         service = build('drive', 'v3', credentials=creds)
 
         # 1. Resolve folder hierarchy: __generated__ -> gemini-hobby-fantasy-scene
