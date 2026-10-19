@@ -30,15 +30,56 @@ PRESET_TAGS = {
 }
 
 def generate_specific_tags(title: str) -> list[str]:
-    """Extracts 2-3 specific tags from title if not in preset"""
-    words = [w for w in re.split(r"\s+", title) if len(w) >= 2]
+    """
+    Extracts 2 meaningful fantasy noun phrases from Korean title,
+    filtering out adverbs, verbs, and particles.
+    """
+    verb_strip = (
+        r'^.*?(?:거래하는|빚는|벼리는|감정하는|잇는|담는|짜\s*넣는|타는|열리는|쓰는|곱씹는|치는|'
+        r'고쳐\s*쓰는|파는|고치는|증류하는|다림질하는|뛰는|청소하는|낚는|먹는|울리는|다듬는|'
+        r'깁는|삼는|지키는|떠난|수확하는|덜어내는|움직이는|자라는|지어지지\s*않은|걸어야만\s*열리는|'
+        r'몰고\s*다니는|몰고다니는)\s+'
+    )
+    adj_strip = (
+        r'^(?:아직|이미|스스로|뒤로|잠든|밤마다|매일|내려가기만\s*하는|3초\s*먼저|'
+        r'오만한|시끄러운|낭패\s*본|말\s*많은|늙은|굴러떨어진|삼천\s*살의|비뚤어진|구운|'
+        r'구겨진|뚱뚱한|잃어버린|차가운|노래하는|공중에\s*뜬|도망친|결백한|멈춰\s*선|'
+        r'가짜|고집불통|허공에\s*뜬|구부러진|뒤늦은|말문\s*막힌|노인|엎질러진|은빛)\s+'
+    )
+
+    parts = re.split(r'(?:와|과)\s+', title, maxsplit=1)
+    specific_tags = []
+
+    def clean_chunk(text: str) -> str:
+        text = re.sub(verb_strip, '', text)
+        text = re.sub(adj_strip, '', text)
+        text = re.sub(r'^[은는이가을를의과와]\s*', '', text)
+        clean = re.sub(r'[^\w가-힣]', '', text)
+        return clean
+
+    if len(parts) == 2:
+        n1 = clean_chunk(parts[0])
+        n2 = clean_chunk(parts[1])
+        if n1 and len(n1) >= 2:
+            specific_tags.append(f"#{n1}")
+        if n2 and len(n2) >= 2:
+            specific_tags.append(f"#{n2}")
+
+    # Fallback if specific tags < 2
+    if len(specific_tags) < 2:
+        words = [w for w in re.split(r'\s+', title) if len(w) >= 2]
+        for w in reversed(words):
+            cw = re.sub(r'[^\w가-힣]', '', w)
+            if cw and len(cw) >= 2 and f"#{cw}" not in specific_tags:
+                specific_tags.append(f"#{cw}")
+            if len(specific_tags) >= 2:
+                break
+
     tags = list(BASE_TAGS)
-    for w in words:
-        clean = re.sub(r"[^\w가-힣]", "", w)
-        if clean and len(clean) >= 2 and f"#{clean}" not in tags:
-            tags.append(f"#{clean}")
-        if len(tags) >= 5:
-            break
+    for stag in specific_tags[:2]:
+        if stag not in tags:
+            tags.append(stag)
+
     return tags
 
 def migrate_tags_for_post(page, editor_frame, blog_id: str, log_no: str, target_tags: list[str]) -> bool:
