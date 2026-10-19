@@ -4,7 +4,12 @@ build_webapp.py
 --------------------------------------------------------------------------------
 이 스크립트는 네이버 블로그 스마트에디터 ONE 서식 에뮬레이터 및
 한국어 형태소 태깅(NLP) 샌드박스 웹 애플리케이션(index.html)을 빌드합니다.
-GitHub Pages 루트(/) 및 docs/ 경로 모두에서 바로 배포 및 임베드될 수 있도록 구성합니다.
+design.md(Editorial Rationalism / Swiss Technical) 디자인 시스템을 100% 준수합니다:
+  - Zero Border-Radius (곡률 0px 엄수)
+  - Hairline Grid Architecture (1px solid 테크니컬 그리드)
+  - Planar Depth (그림자/블러 배제, 평면 명도 차이로 깊이감 구현)
+  - Swiss Typography (Inter + JetBrains Mono 레이블링)
+  - Semantic Color Tokens (Light & Dark 1:1 매핑, accent-spec: #c45a72)
 --------------------------------------------------------------------------------
 """
 
@@ -13,147 +18,205 @@ import os
 import shutil
 
 HTML_TEMPLATE = """<!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Naver SmartEditor ONE & NLP Tag Sandbox</title>
+  <title>LIVE RUNTIME // Naver SmartEditor ONE & NLP Sandbox</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&family=Maru+Buri:wght@300;400;600&family=Nanum+Barun+Gothic&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Maru+Buri:wght@300;400;600&family=Nanum+Barun+Gothic&family=Nanum+Gothic:wght@400;700&family=Nanum+Myeongjo:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg-dark: #0b0f19;
-      --bg-card: #151d2e;
-      --bg-card-hover: #1c273e;
-      --border-color: #23314d;
-      --primary: #3b82f6;
-      --primary-hover: #2563eb;
-      --accent: #10b981;
-      --accent-purple: #8b5cf6;
-      --text-main: #f1f5f9;
-      --text-muted: #94a3b8;
-      --terminal-bg: #070a12;
+    /* =========================================================================
+       EDITORIAL RATIONALISM (SWISS TECHNICAL) DESIGN SYSTEM
+       ========================================================================= */
+    :root, [data-theme="dark"] {
+      --surface-canvas: #121316;
+      --surface-card: #1a1b20;
+      --surface-subtle: #202227;
+      --surface-muted: #26282f;
+      --surface-inverse: #e2e4e9;
+      --border-strong: #3a3d47;
+      --border-subtle: #26282f;
+      --text-primary: #ededed;
+      --text-secondary: #9b9ea8;
+      --text-muted: #636672;
+      --text-inverse: #121316;
+      --accent-spec: #c45a72;
       --naver-green: #03c75a;
       --parchment: #ece0c6;
     }
 
+    [data-theme="light"] {
+      --surface-canvas: #efece6;
+      --surface-card: #f6f5f1;
+      --surface-subtle: #e8e5de;
+      --surface-muted: #ddd9d0;
+      --surface-inverse: #1c1d22;
+      --border-strong: #2d3139;
+      --border-subtle: #d0ccc2;
+      --text-primary: #1c1d22;
+      --text-secondary: #4b5160;
+      --text-muted: #757c8d;
+      --text-inverse: #f6f5f1;
+      --accent-spec: #c45a72;
+      --naver-green: #03c75a;
+      --parchment: #ece0c6;
+    }
+
+    /* Zero Border-Radius & Hairline Reset */
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
     }
 
     body {
-      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: var(--bg-dark);
-      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--surface-canvas);
+      color: var(--text-primary);
       line-height: 1.5;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      border-top: 2px solid var(--accent-spec);
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Header */
+    /* Top Technical Nav Strip */
     header {
-      background: rgba(21, 29, 46, 0.9);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--surface-card);
+      border-bottom: 1px solid var(--border-strong);
       position: sticky;
       top: 0;
       z-index: 100;
-      padding: 0.75rem 1.5rem;
     }
 
     .header-inner {
-      max-width: 1440px;
+      max-width: 1480px;
       margin: 0 auto;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: stretch;
       flex-wrap: wrap;
-      gap: 0.75rem;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1.25rem;
+      border-right: 1px solid var(--border-subtle);
+    }
+
+    .status-pip {
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent-spec);
+      display: inline-block;
+    }
+
+    .brand-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-spec);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     .brand-title {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .badge-live {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #34d399;
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 0.2rem 0.6rem;
-      border-radius: 9999px;
-    }
-
-    .pulse-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: #10b981;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-    }
-
-    .brand-title h1 {
-      font-size: 1.15rem;
+      font-size: 15px;
       font-weight: 700;
       letter-spacing: -0.02em;
+      color: var(--text-primary);
     }
 
+    /* Navigation Tabs */
     .nav-tabs {
       display: flex;
-      gap: 0.5rem;
-      background: var(--bg-dark);
-      padding: 0.25rem;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
+      align-items: stretch;
+      flex: 1;
     }
 
     .tab-btn {
       background: transparent;
       border: none;
-      color: var(--text-muted);
-      padding: 0.45rem 0.9rem;
-      font-size: 0.825rem;
-      font-weight: 600;
-      border-radius: 6px;
+      border-right: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 0 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
       cursor: pointer;
-      transition: all 0.2s ease;
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.5rem;
+      transition: background-color 0.15s, color 0.15s;
+      text-transform: uppercase;
+    }
+
+    .tab-btn:hover {
+      background-color: var(--surface-subtle);
+      color: var(--text-primary);
     }
 
     .tab-btn.active {
-      background: var(--primary);
-      color: #ffffff;
-      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+      background-color: var(--surface-inverse);
+      color: var(--text-inverse);
+      font-weight: 700;
     }
 
-    .tab-btn:hover:not(.active) {
-      color: var(--text-main);
-      background: rgba(255, 255, 255, 0.05);
+    .tab-btn .tab-num {
+      color: var(--accent-spec);
+      font-size: 11px;
+    }
+
+    .tab-btn.active .tab-num {
+      color: var(--text-inverse);
+    }
+
+    /* Header Controls (Theme Toggle & External Link) */
+    .header-controls {
+      display: flex;
+      align-items: stretch;
+      border-left: 1px solid var(--border-subtle);
+    }
+
+    .ctrl-btn {
+      background: transparent;
+      border: none;
+      border-left: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 0 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .ctrl-btn:hover {
+      background: var(--surface-subtle);
+      color: var(--text-primary);
     }
 
     /* Main Container */
     main {
-      max-width: 1440px;
+      max-width: 1480px;
       margin: 0 auto;
-      padding: 1.25rem;
+      padding: 1.5rem 1.25rem;
       flex: 1;
       width: 100%;
     }
@@ -166,573 +229,592 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: block;
     }
 
-    /* Sandbox Grid Layout */
-    .sandbox-layout {
+    /* Hairline Grid Architecture */
+    .grid-container {
       display: grid;
-      grid-template-columns: 420px 1fr;
-      gap: 1.25rem;
-      align-items: start;
+      grid-template-columns: 440px 1fr;
+      border: 1px solid var(--border-strong);
+      background-color: var(--border-strong);
+      gap: 1px; /* 1px Hairline Grid */
     }
 
     @media (max-width: 1080px) {
-      .sandbox-layout {
+      .grid-container {
         grid-template-columns: 1fr;
       }
     }
 
-    /* Left Control Panel */
-    .control-panel {
+    /* Left Control Sidebar */
+    .sidebar {
+      background-color: var(--surface-card);
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1px;
     }
 
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 1.15rem;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    /* Module Card */
+    .module-card {
+      background-color: var(--surface-card);
+      border-bottom: 1px solid var(--border-subtle);
     }
 
-    .card-header {
+    .module-card:last-child {
+      border-bottom: none;
+    }
+
+    .module-header {
+      background-color: var(--surface-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.65rem 1rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.9rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--border-color);
     }
 
-    .card-title {
-      font-size: 0.95rem;
-      font-weight: 700;
+    .module-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-primary);
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      color: #93c5fd;
     }
 
-    .card-tag {
-      font-size: 0.7rem;
-      background: rgba(59, 130, 246, 0.15);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      color: #60a5fa;
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
+    .module-title .tag-num {
+      color: var(--accent-spec);
+    }
+
+    .module-badge {
       font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      background: var(--surface-muted);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 0.15rem 0.45rem;
+      text-transform: uppercase;
     }
 
-    /* Form & Controls */
-    .form-group {
+    .module-body {
+      padding: 1rem;
+    }
+
+    /* Form Fields & Controls */
+    .field-group {
       margin-bottom: 0.85rem;
     }
 
-    .form-label {
+    .field-label {
       display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 0.35rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
     }
 
-    .text-input {
+    .input-text {
       width: 100%;
-      background: var(--bg-dark);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      color: var(--text-main);
-      padding: 0.5rem 0.75rem;
-      font-size: 0.85rem;
-      transition: border 0.2s;
-    }
-
-    .text-input:focus {
+      background-color: var(--surface-canvas);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 0.55rem 0.75rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
       outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+      transition: border-color 0.15s;
     }
 
-    .btn-action {
-      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-      color: white;
-      border: none;
-      padding: 0.6rem 1rem;
-      font-size: 0.85rem;
+    .input-text:focus {
+      border-color: var(--text-primary);
+    }
+
+    /* Primary & Secondary Buttons */
+    .btn-primary {
+      background-color: var(--surface-inverse);
+      color: var(--text-inverse);
+      border: 1px solid var(--surface-inverse);
+      padding: 0.65rem 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       font-weight: 600;
-      border-radius: 6px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       cursor: pointer;
       width: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.4rem;
-      transition: all 0.2s;
+      gap: 0.5rem;
+      transition: background-color 0.15s, color 0.15s;
     }
 
-    .btn-action:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    .btn-primary:hover {
+      background-color: var(--accent-spec);
+      border-color: var(--accent-spec);
+      color: #ffffff;
     }
 
-    /* NLP Pipeline Visualizer */
-    .nlp-pipeline {
-      margin-top: 0.75rem;
-      background: var(--bg-dark);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 0.75rem;
-      font-size: 0.75rem;
-      font-family: 'JetBrains Mono', monospace;
+    /* Step-by-Step Data Pipeline Inspector */
+    .pipeline-inspector {
+      margin-top: 0.85rem;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--surface-canvas);
     }
 
-    .nlp-step {
+    .pipeline-row {
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      padding: 0.35rem 0;
-      border-bottom: 1px dashed rgba(255, 255, 255, 0.07);
+      align-items: center;
+      padding: 0.45rem 0.75rem;
+      border-bottom: 1px solid var(--border-subtle);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
     }
 
-    .nlp-step:last-child {
+    .pipeline-row:last-child {
       border-bottom: none;
+      background-color: var(--surface-subtle);
     }
 
-    .nlp-step-label {
+    .pipeline-lbl {
       color: var(--text-muted);
+      letter-spacing: 0.04em;
     }
 
-    .nlp-step-val {
-      color: #38bdf8;
+    .pipeline-val {
+      color: var(--text-primary);
       font-weight: 600;
-      text-align: right;
-      max-width: 220px;
+      max-width: 230px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      text-align: right;
     }
 
-    /* Typography Controls */
-    .style-row {
+    .pipeline-val.highlight {
+      color: var(--accent-spec);
+    }
+
+    /* Select Inputs */
+    .select-control {
+      width: 100%;
+      background-color: var(--surface-canvas);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 0.5rem 0.65rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .select-control:focus {
+      border-color: var(--text-primary);
+    }
+
+    .control-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 0.65rem;
       margin-bottom: 0.75rem;
     }
 
-    .select-input {
-      width: 100%;
-      background: var(--bg-dark);
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-      padding: 0.45rem 0.65rem;
-      border-radius: 6px;
-      font-size: 0.825rem;
-      cursor: pointer;
-    }
-
-    .select-input:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-
-    /* Color Chips */
-    .color-chips {
+    /* Color Palette */
+    .palette-grid {
       display: flex;
-      align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
       flex-wrap: wrap;
-      margin-top: 0.3rem;
+      margin-top: 0.35rem;
     }
 
-    .color-chip {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
+    .palette-pip {
+      width: 22px;
+      height: 22px;
       cursor: pointer;
-      border: 2px solid transparent;
-      transition: transform 0.15s, border-color 0.15s;
+      border: 1px solid var(--border-strong);
+      position: relative;
     }
 
-    .color-chip:hover {
-      transform: scale(1.15);
+    .palette-pip.active::after {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      border: 1px solid var(--accent-spec);
     }
 
-    .color-chip.active {
-      border-color: #ffffff;
-      box-shadow: 0 0 0 2px var(--primary);
-    }
-
-    .custom-color-wrap {
+    .custom-hex-row {
       display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      margin-top: 0.45rem;
-    }
-
-    .custom-color-wrap input[type="color"] {
-      -webkit-appearance: none;
-      border: none;
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      cursor: pointer;
-      background: transparent;
-    }
-
-    .custom-color-wrap input[type="text"] {
-      flex: 1;
-      font-family: 'JetBrains Mono', monospace;
-      padding: 0.35rem 0.5rem;
-      font-size: 0.8rem;
-    }
-
-    /* Button Groups */
-    .btn-group {
-      display: flex;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      overflow: hidden;
-      background: var(--bg-dark);
-    }
-
-    .btn-group button {
-      flex: 1;
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      padding: 0.4rem 0.5rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      border-right: 1px solid var(--border-color);
-    }
-
-    .btn-group button:last-child {
-      border-right: none;
-    }
-
-    .btn-group button.active {
-      background: var(--primary);
-      color: white;
-    }
-
-    .btn-group button:hover:not(.active) {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text-main);
-    }
-
-    /* Quick Preset Buttons */
-    .presets-container {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.45rem;
+      align-items: stretch;
+      gap: 0.35rem;
       margin-top: 0.5rem;
     }
 
-    .btn-preset {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-      padding: 0.4rem;
-      font-size: 0.725rem;
-      border-radius: 6px;
+    .color-swatch-input {
+      -webkit-appearance: none;
+      border: 1px solid var(--border-strong);
+      width: 32px;
+      height: 32px;
+      background: transparent;
       cursor: pointer;
-      transition: all 0.2s;
+      padding: 0;
+    }
+
+    .color-swatch-input::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    .color-swatch-input::-webkit-color-swatch {
+      border: none;
+    }
+
+    /* Segmented Button Groups */
+    .segmented-group {
+      display: flex;
+      border: 1px solid var(--border-strong);
+    }
+
+    .segmented-btn {
+      flex: 1;
+      background: var(--surface-canvas);
+      border: none;
+      border-right: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      padding: 0.45rem 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    .segmented-btn:last-child {
+      border-right: none;
+    }
+
+    .segmented-btn:hover {
+      background-color: var(--surface-subtle);
+      color: var(--text-primary);
+    }
+
+    .segmented-btn.active {
+      background-color: var(--surface-inverse);
+      color: var(--text-inverse);
+      font-weight: 700;
+    }
+
+    /* Presets Grid */
+    .presets-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background-color: var(--border-subtle);
+      border: 1px solid var(--border-subtle);
+      margin-top: 0.5rem;
+    }
+
+    .preset-box {
+      background-color: var(--surface-card);
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.5rem 0.35rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
       text-align: center;
+      transition: background-color 0.15s, color 0.15s;
     }
 
-    .btn-preset:hover {
-      background: rgba(59, 130, 246, 0.15);
-      border-color: var(--primary);
-      color: #93c5fd;
+    .preset-box:hover {
+      background-color: var(--surface-subtle);
+      color: var(--accent-spec);
     }
 
-    /* SmartEditor ONE Canvas Replicating Frame */
-    .editor-frame {
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-      overflow: hidden;
+    /* Right Main Panel: Live SmartEditor ONE Emulator */
+    .editor-section {
+      background-color: var(--surface-card);
       display: flex;
       flex-direction: column;
-      border: 1px solid #d1d5db;
     }
 
-    .editor-topbar {
-      background: #f8fafc;
-      border-bottom: 1px solid #e2e8f0;
-      padding: 0.6rem 1rem;
+    .editor-sys-header {
+      background-color: var(--surface-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.65rem 1.25rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .editor-meta-status {
+    .editor-sys-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-size: 0.75rem;
-      color: #64748b;
-      font-weight: 500;
     }
 
-    .naver-logo-pill {
-      background: var(--naver-green);
-      color: white;
-      font-size: 0.65rem;
+    .naver-tag-spec {
+      background-color: var(--naver-green);
+      color: #ffffff;
+      font-size: 9px;
       font-weight: 900;
       padding: 0.15rem 0.4rem;
-      border-radius: 3px;
-      letter-spacing: -0.02em;
+      letter-spacing: 0.02em;
     }
 
-    .editor-actions {
+    .editor-action-strip {
       display: flex;
       gap: 0.4rem;
     }
 
-    .btn-naver-save {
-      background: #f1f5f9;
-      border: 1px solid #cbd5e1;
-      color: #475569;
-      font-size: 0.75rem;
+    .btn-hairline {
+      background-color: var(--surface-card);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 0.35rem 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       font-weight: 600;
-      padding: 0.3rem 0.65rem;
-      border-radius: 4px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
       cursor: pointer;
+      transition: background 0.15s;
     }
 
-    .btn-naver-publish {
-      background: var(--naver-green);
-      border: 1px solid #02a34a;
-      color: white;
-      font-size: 0.75rem;
-      font-weight: 700;
-      padding: 0.3rem 0.85rem;
-      border-radius: 4px;
-      cursor: pointer;
+    .btn-hairline:hover {
+      background-color: var(--surface-subtle);
     }
 
-    /* Replicated SmartEditor ONE Toolbar */
-    .se-toolbar-mock {
-      background: #ffffff;
-      border-bottom: 1px solid #e5e7eb;
-      padding: 0.4rem 1rem;
+    .btn-hairline.primary {
+      background-color: var(--naver-green);
+      border-color: var(--naver-green);
+      color: #ffffff;
+    }
+
+    /* SmartEditor ONE Replicated Toolbar (Hairline Brutalism) */
+    .se-toolbar-hairline {
+      background-color: var(--surface-card);
+      border-bottom: 1px solid var(--border-strong);
+      padding: 0.45rem 1rem;
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.35rem;
       flex-wrap: wrap;
-      font-size: 0.75rem;
-      color: #374151;
       user-select: none;
     }
 
-    .se-tool-item {
-      padding: 0.25rem 0.45rem;
-      border-radius: 4px;
+    .se-tool-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-primary);
+      padding: 0.25rem 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 0.2rem;
-      border: 1px solid transparent;
+      gap: 0.3rem;
     }
 
-    .se-tool-item:hover {
-      background: #f3f4f6;
-      border-color: #e5e7eb;
+    .se-tool-btn:hover {
+      background-color: var(--surface-subtle);
+      border-color: var(--border-subtle);
     }
 
-    .se-tool-divider {
+    .se-tool-sep {
       width: 1px;
       height: 16px;
-      background: #e5e7eb;
-      margin: 0 0.15rem;
+      background-color: var(--border-strong);
+      margin: 0 0.25rem;
     }
 
-    /* Editor Document Canvas */
-    .editor-canvas {
-      padding: 2.5rem 2.25rem;
-      color: #333333;
-      background: #ffffff;
-      min-height: 520px;
+    /* Document Canvas Area */
+    .doc-canvas-wrap {
+      background-color: #ffffff;
+      color: #1c1d22;
+      flex: 1;
+      padding: 2.5rem 3rem;
+      min-height: 540px;
       display: flex;
       flex-direction: column;
     }
 
-    .doc-category {
-      font-size: 0.825rem;
+    .doc-category-line {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
       color: var(--naver-green);
-      font-weight: 700;
-      margin-bottom: 0.4rem;
-      letter-spacing: -0.01em;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
     }
 
-    .doc-title {
-      font-size: 1.65rem;
+    .doc-title-h1 {
+      font-family: 'Inter', sans-serif;
+      font-size: 26px;
       font-weight: 700;
-      color: #111827;
       line-height: 1.35;
-      margin-bottom: 0.6rem;
       letter-spacing: -0.02em;
+      color: #111827;
+      margin-bottom: 0.75rem;
     }
 
-    .doc-meta {
-      font-size: 0.775rem;
-      color: #9ca3af;
-      margin-bottom: 1.5rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid #f3f4f6;
+    .doc-metadata-strip {
       display: flex;
       align-items: center;
       gap: 0.75rem;
-    }
-
-    /* Illustration Container */
-    .doc-illustration-wrap {
-      background-color: var(--parchment);
-      border: 1px solid #d4c5a9;
-      border-radius: 4px;
-      padding: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #757c8d;
+      padding-bottom: 1rem;
       margin-bottom: 1.75rem;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      border-bottom: 1px solid #e5e7eb;
     }
 
-    .doc-illustration-wrap img {
+    /* Illustration Presentation */
+    .doc-etching-frame {
+      background-color: var(--parchment);
+      border: 1px solid #d0ccc2;
+      padding: 0.75rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .doc-etching-frame img {
       max-width: 100%;
       height: auto;
-      border-radius: 2px;
       display: block;
       margin: 0 auto;
     }
 
-    .doc-illustration-caption {
-      font-size: 0.75rem;
-      color: #786c55;
-      margin-top: 0.4rem;
-      font-style: italic;
+    .doc-etching-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #6b6352;
+      margin-top: 0.5rem;
+      letter-spacing: 0.04em;
     }
 
-    /* Story Paragraphs */
-    .doc-content {
-      margin-bottom: 2rem;
-      transition: all 0.2s ease;
+    /* Styled Story Paragraphs */
+    .doc-body-content {
+      margin-bottom: 2.5rem;
+      transition: font 0.15s ease, color 0.15s ease;
     }
 
-    .doc-content p {
+    .doc-body-content p {
       margin-bottom: 1.25rem;
     }
 
-    .doc-content blockquote {
-      border-left: 3px solid var(--naver-green);
+    .doc-body-content blockquote {
+      border-left: 2px solid var(--naver-green);
       padding-left: 1rem;
-      margin: 1.25rem 0;
+      margin: 1.5rem 0;
       color: #4b5563;
       font-style: italic;
     }
 
-    /* Tags section */
-    .doc-tags-section {
+    /* Post Tags Strip */
+    .doc-tags-row {
       margin-top: auto;
-      padding-top: 1.25rem;
+      padding-top: 1.5rem;
       border-top: 1px solid #f3f4f6;
       display: flex;
       flex-wrap: wrap;
-      gap: 0.45rem;
       align-items: center;
+      gap: 0.4rem;
     }
 
-    .doc-tag-label {
-      font-size: 0.775rem;
+    .doc-tags-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       font-weight: 700;
       color: #6b7280;
       margin-right: 0.25rem;
+      text-transform: uppercase;
     }
 
-    .doc-tag-pill {
+    .tag-hairline-pip {
       background: #f3f4f6;
-      color: #2563eb;
-      font-size: 0.8rem;
+      border: 1px solid #e5e7eb;
+      color: #1e40af;
+      font-size: 12px;
       font-weight: 500;
-      padding: 0.25rem 0.6rem;
-      border-radius: 9999px;
+      padding: 0.2rem 0.55rem;
       text-decoration: none;
-      transition: background 0.15s;
     }
 
-    .doc-tag-pill:hover {
+    .tag-hairline-pip:hover {
       background: #e5e7eb;
     }
 
-    /* Bottom Terminal / Logger */
-    .terminal-section {
-      margin-top: 1.25rem;
+    /* Hairline Terminal / Event Log Strip */
+    .terminal-container {
+      margin-top: 1.5rem;
+      border: 1px solid var(--border-strong);
+      background-color: var(--surface-card);
     }
 
     .terminal-header {
+      background-color: var(--surface-subtle);
+      border-bottom: 1px solid var(--border-strong);
+      padding: 0.5rem 1rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #0f1523;
-      border: 1px solid var(--border-color);
-      border-bottom: none;
-      border-radius: 10px 10px 0 0;
-      padding: 0.5rem 1rem;
     }
 
     .terminal-title {
-      font-size: 0.775rem;
-      font-weight: 600;
       font-family: 'JetBrains Mono', monospace;
-      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-primary);
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .terminal-dots {
-      display: flex;
-      gap: 4px;
-    }
-
-    .terminal-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
-    .terminal-dot.red { background: #ef4444; }
-    .terminal-dot.yellow { background: #f59e0b; }
-    .terminal-dot.green { background: #10b981; }
-
     .terminal-body {
-      background: var(--terminal-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 0 0 10px 10px;
+      background-color: var(--surface-canvas);
       padding: 0.85rem 1rem;
-      height: 140px;
+      height: 135px;
       overflow-y: auto;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
+      font-size: 11px;
       line-height: 1.6;
     }
 
-    .log-line {
+    .log-row {
       display: flex;
       gap: 0.5rem;
-      margin-bottom: 0.15rem;
+      margin-bottom: 0.2rem;
     }
 
-    .log-time { color: #64748b; }
+    .log-time { color: var(--text-muted); }
     .log-tag-pw { color: #38bdf8; font-weight: 600; }
-    .log-tag-dom { color: #10b981; font-weight: 600; }
-    .log-tag-nlp { color: #a855f7; font-weight: 600; }
-    .log-msg { color: #e2e8f0; }
+    .log-tag-dom { color: #34d399; font-weight: 600; }
+    .log-tag-nlp { color: var(--accent-spec); font-weight: 600; }
+    .log-text { color: var(--text-primary); }
 
-    /* Tab 2: Story Archive */
-    .archive-controls {
+    /* TAB 2: ARCHIVE GRID (Hairline Table & Grid) */
+    .archive-header-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -741,472 +823,507 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       gap: 0.75rem;
     }
 
-    .archive-filters {
+    .filter-tabs {
       display: flex;
-      gap: 0.5rem;
+      border: 1px solid var(--border-strong);
     }
 
-    .filter-btn {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: var(--text-muted);
-      padding: 0.4rem 0.8rem;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      cursor: pointer;
+    .filter-tab-btn {
+      background: var(--surface-card);
+      border: none;
+      border-right: 1px solid var(--border-strong);
+      color: var(--text-secondary);
+      padding: 0.5rem 0.85rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       font-weight: 600;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      text-transform: uppercase;
     }
 
-    .filter-btn.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
+    .filter-tab-btn:last-child {
+      border-right: none;
     }
 
-    .search-box {
-      position: relative;
+    .filter-tab-btn:hover {
+      background: var(--surface-subtle);
+      color: var(--text-primary);
+    }
+
+    .filter-tab-btn.active {
+      background: var(--surface-inverse);
+      color: var(--text-inverse);
+    }
+
+    .search-input-box {
       width: 280px;
+      background: var(--surface-card);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 0.5rem 0.75rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      outline: none;
     }
 
-    .search-input {
-      width: 100%;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 0.45rem 0.75rem;
-      color: white;
-      font-size: 0.825rem;
+    .search-input-box:focus {
+      border-color: var(--text-primary);
     }
 
-    .posts-grid {
+    .archive-cards-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1px;
+      background-color: var(--border-strong);
+      border: 1px solid var(--border-strong);
     }
 
-    .post-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
+    .archive-card {
+      background-color: var(--surface-card);
       padding: 1rem;
-      transition: all 0.2s;
       display: flex;
       flex-direction: column;
+      transition: background-color 0.15s;
     }
 
-    .post-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--primary);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    .archive-card:hover {
+      background-color: var(--surface-subtle);
     }
 
-    .post-card-date {
-      font-size: 0.725rem;
-      color: #94a3b8;
+    .arch-card-date {
       font-family: 'JetBrains Mono', monospace;
-      margin-bottom: 0.3rem;
+      font-size: 10px;
+      color: var(--accent-spec);
+      letter-spacing: 0.06em;
+      margin-bottom: 0.35rem;
     }
 
-    .post-card-title {
-      font-size: 0.975rem;
-      font-weight: 700;
-      color: #f1f5f9;
-      margin-bottom: 0.5rem;
+    .arch-card-title {
+      font-size: 14px;
+      font-weight: 600;
       line-height: 1.4;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
     }
 
-    .post-card-theme {
-      font-size: 0.725rem;
-      background: rgba(139, 92, 246, 0.15);
-      border: 1px solid rgba(139, 92, 246, 0.3);
-      color: #c4b5fd;
-      padding: 0.15rem 0.5rem;
-      border-radius: 4px;
+    .arch-card-theme {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      background: var(--surface-muted);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      padding: 0.15rem 0.45rem;
       margin-bottom: 0.75rem;
       align-self: flex-start;
+      letter-spacing: 0.04em;
     }
 
-    .post-card-tags {
+    .arch-card-tags {
       display: flex;
       flex-wrap: wrap;
       gap: 0.35rem;
       margin-top: auto;
       padding-top: 0.75rem;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      border-top: 1px solid var(--border-subtle);
     }
 
-    .post-tag-chip {
-      font-size: 0.725rem;
-      color: #60a5fa;
-      background: rgba(59, 130, 246, 0.1);
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
+    .arch-tag-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-secondary);
+      background: var(--surface-canvas);
+      border: 1px solid var(--border-subtle);
+      padding: 0.15rem 0.35rem;
     }
 
-    .post-card-actions {
+    .arch-card-actions {
       margin-top: 0.75rem;
-      display: flex;
-      gap: 0.4rem;
     }
 
-    .btn-card-load {
-      flex: 1;
-      background: rgba(59, 130, 246, 0.15);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      color: #93c5fd;
-      padding: 0.35rem;
-      font-size: 0.75rem;
-      border-radius: 4px;
+    .btn-card-open {
+      width: 100%;
+      background: var(--surface-canvas);
+      border: 1px solid var(--border-strong);
+      color: var(--text-primary);
+      padding: 0.4rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
       cursor: pointer;
       text-align: center;
-      transition: background 0.15s;
+      transition: all 0.15s;
     }
 
-    .btn-card-load:hover {
-      background: var(--primary);
-      color: white;
+    .btn-card-open:hover {
+      background: var(--surface-inverse);
+      color: var(--text-inverse);
     }
 
-    /* Tab 3: Architecture */
-    .arch-grid {
+    /* TAB 3: ARCHITECTURE (Hairline Metrics & Specs) */
+    .metrics-bar {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 1.25rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1px;
+      background-color: var(--border-strong);
+      border: 1px solid var(--border-strong);
+      margin-bottom: 1.5rem;
     }
 
-    .metric-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 1.25rem;
-    }
-
-    .metric-num {
-      font-size: 2.25rem;
-      font-weight: 800;
-      color: #38bdf8;
-      font-family: 'JetBrains Mono', monospace;
-      margin-bottom: 0.25rem;
-    }
-
-    .metric-desc {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
-
-    .arch-flowchart {
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
+    .metric-cell {
+      background-color: var(--surface-card);
       padding: 1.5rem;
-      margin-top: 1.25rem;
     }
 
-    .flow-steps {
+    .metric-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: var(--accent-spec);
+      margin-bottom: 0.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .metric-caption {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+    }
+
+    .spec-block {
+      border: 1px solid var(--border-strong);
+      background-color: var(--surface-card);
+      margin-bottom: 1.5rem;
+    }
+
+    .spec-header {
+      background-color: var(--surface-subtle);
+      border-bottom: 1px solid var(--border-strong);
+      padding: 0.75rem 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .spec-list {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-      position: relative;
     }
 
-    .flow-step {
+    .spec-item {
       display: flex;
-      align-items: flex-start;
-      gap: 1rem;
-      background: var(--bg-dark);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      gap: 1.5rem;
     }
 
-    .flow-badge {
-      background: var(--primary);
-      color: white;
+    .spec-item:last-child {
+      border-bottom: none;
+    }
+
+    .spec-idx {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
+      font-size: 11px;
+      color: var(--accent-spec);
       font-weight: 700;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 48px;
       flex-shrink: 0;
     }
 
-    .flow-info h4 {
-      font-size: 0.95rem;
-      color: #93c5fd;
-      margin-bottom: 0.3rem;
+    .spec-detail h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
     }
 
-    .flow-info p {
-      font-size: 0.825rem;
-      color: var(--text-muted);
+    .spec-detail p {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
     }
 
     /* Footer */
     footer {
-      background: var(--bg-dark);
-      border-top: 1px solid var(--border-color);
-      padding: 1.25rem 1.5rem;
-      text-align: center;
-      font-size: 0.8rem;
+      background: var(--surface-card);
+      border-top: 1px solid var(--border-strong);
+      padding: 1rem 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
       color: var(--text-muted);
-      margin-top: auto;
+      letter-spacing: 0.06em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
     footer a {
-      color: var(--primary);
-      text-decoration: none;
+      color: var(--text-primary);
+      text-decoration: underline;
     }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Technical Header -->
   <header>
     <div class="header-inner">
-      <div class="brand-title">
-        <div class="badge-live">
-          <span class="pulse-dot"></span>
-          <span>LIVE RUNTIME</span>
-        </div>
+      <div class="brand-section">
+        <span class="status-pip"></span>
         <div>
-          <h1>Naver SmartEditor ONE & NLP Sandbox</h1>
+          <div class="brand-meta">LIVE RUNTIME // SEC_01</div>
+          <div class="brand-title">Naver SmartEditor ONE & NLP Sandbox</div>
         </div>
       </div>
+
       <nav class="nav-tabs">
         <button class="tab-btn active" onclick="switchTab('sandbox')">
-          <span>🎨</span> 서식 & 태그 샌드박스
+          <span class="tab-num">01</span> 서식 & 태그 샌드박스
         </button>
         <button class="tab-btn" onclick="switchTab('archive')">
-          <span>📚</span> 70편 연재작 아카이브
+          <span class="tab-num">02</span> 70편 연재작 아카이브
         </button>
         <button class="tab-btn" onclick="switchTab('arch')">
-          <span>📐</span> 파이프라인 아키텍처
+          <span class="tab-num">03</span> 파이프라인 아키텍처
         </button>
       </nav>
+
+      <div class="header-controls">
+        <button class="ctrl-btn" onclick="toggleTheme()" id="btn-theme">
+          THEME: <strong id="lbl-theme" style="margin-left:4px">DARK</strong>
+        </button>
+        <a href="https://github.com/orselv99/automation-posting" target="_blank" class="ctrl-btn" style="text-decoration:none">
+          GITHUB ↗
+        </a>
+      </div>
     </div>
   </header>
 
-  <!-- Main Content -->
+  <!-- Main Technical Container -->
   <main>
+
     <!-- TAB 1: SANDBOX -->
     <section id="tab-sandbox" class="tab-content active">
-      <div class="sandbox-layout">
+      <div class="grid-container">
         
-        <!-- Left Control Panel -->
-        <div class="control-panel">
-          
-          <!-- Card: Korean NLP Tagger -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">
-                <span>⚡</span> 한글 정규식 형태소 태거
+        <!-- Left Sidebar: NLP & Typography Controls -->
+        <div class="sidebar">
+
+          <!-- Module: Korean NLP Tag Engine -->
+          <div class="module-card">
+            <div class="module-header">
+              <span class="module-title">
+                <span class="tag-num">01 //</span> 한글 정규식 형태소 태거
               </span>
-              <span class="card-tag">re.compile</span>
+              <span class="module-badge">re.compile</span>
             </div>
-            
-            <div class="form-group">
-              <label class="form-label">소설 제목 입력</label>
-              <input type="text" id="input-title" class="text-input" value="기억을 거래하는 신비한 은빛 상점과 침묵의 방직공">
-            </div>
+            <div class="module-body">
+              <div class="field-group">
+                <label class="field-label">소설 제목 원문 (TITLE_INPUT)</label>
+                <input type="text" id="input-title" class="input-text" value="기억을 거래하는 신비한 은빛 상점과 침묵의 방직공">
+              </div>
 
-            <button class="btn-action" onclick="runNlpPipeline()">
-              <span>🚀</span> 실시간 태그 추출 실행
-            </button>
+              <button class="btn-primary" onclick="runNlpPipeline()">
+                [EXEC] 실시간 태그 추출 실행
+              </button>
 
-            <!-- NLP Pipeline Step Visualizer -->
-            <div class="nlp-pipeline">
-              <div class="nlp-step">
-                <span class="nlp-step-label">[1] 토큰 분리</span>
-                <span id="nlp-step-1" class="nlp-step-val">기억을, 거래하는...</span>
-              </div>
-              <div class="nlp-step">
-                <span class="nlp-step-label">[2] 동사/어미 제거</span>
-                <span id="nlp-step-2" class="nlp-step-val">거래하는 → 거래</span>
-              </div>
-              <div class="nlp-step">
-                <span class="nlp-step-label">[3] 관형사 필터링</span>
-                <span id="nlp-step-3" class="nlp-step-val">신비한 → 필터아웃</span>
-              </div>
-              <div class="nlp-step">
-                <span class="nlp-step-label">[4] 후방탐색 조사제거</span>
-                <span id="nlp-step-4" class="nlp-step-val">기억을 → 기억</span>
-              </div>
-              <div class="nlp-step">
-                <span class="nlp-step-label">[5] 최종 명사 태그</span>
-                <span id="nlp-step-5" class="nlp-step-val">#기억 #거래 #은빛...</span>
+              <!-- Step-by-Step Pipeline Inspector -->
+              <div class="pipeline-inspector">
+                <div class="pipeline-row">
+                  <span class="pipeline-lbl">STEP_01: TOKENIZE</span>
+                  <span id="nlp-step-1" class="pipeline-val">기억을, 거래하는...</span>
+                </div>
+                <div class="pipeline-row">
+                  <span class="pipeline-lbl">STEP_02: VERB_STRIP</span>
+                  <span id="nlp-step-2" class="pipeline-val">거래하는 → 거래</span>
+                </div>
+                <div class="pipeline-row">
+                  <span class="pipeline-lbl">STEP_03: ADJ_FILTER</span>
+                  <span id="nlp-step-3" class="pipeline-val">신비한 → FILTER_OUT</span>
+                </div>
+                <div class="pipeline-row">
+                  <span class="pipeline-lbl">STEP_04: LOOKBEHIND</span>
+                  <span id="nlp-step-4" class="pipeline-val">기억을 → 기억</span>
+                </div>
+                <div class="pipeline-row">
+                  <span class="pipeline-lbl">FINAL: EXTRACTED</span>
+                  <span id="nlp-step-5" class="pipeline-val highlight">#기억 #거래 #은빛...</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Card: SmartEditor ONE Typography Engine -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">
-                <span>🖋️</span> 스마트에디터 서식 제어기
+          <!-- Module: SmartEditor ONE Typography Engine -->
+          <div class="module-card">
+            <div class="module-header">
+              <span class="module-title">
+                <span class="tag-num">02 //</span> 스마트에디터 서식 제어기
               </span>
-              <span class="card-tag">editor_style.py</span>
+              <span class="module-badge">editor_style.py</span>
             </div>
-
-            <!-- Font Family & Font Size -->
-            <div class="style-row">
-              <div>
-                <label class="form-label">글꼴 서체</label>
-                <select id="sel-font-family" class="select-input" onchange="applyTypography()">
-                  <option value="'Maru Buri', serif" selected>마루부리 (MaruBuri)</option>
-                  <option value="'Nanum Gothic', sans-serif">기본서체 (NanumGothic)</option>
-                  <option value="'Nanum Myeongjo', serif">나눔명조 (NanumMyeongjo)</option>
-                  <option value="'Nanum Barun Gothic', sans-serif">나눔바른고딕</option>
-                  <option value="'Noto Sans KR', sans-serif">본고딕 (NotoSans)</option>
-                </select>
-              </div>
-              <div>
-                <label class="form-label">글자 크기</label>
-                <select id="sel-font-size" class="select-input" onchange="applyTypography()">
-                  <option value="11pt">11pt (fs11)</option>
-                  <option value="13pt">13pt (fs13)</option>
-                  <option value="15pt" selected>15pt (fs15 - 네이버 표준)</option>
-                  <option value="16pt">16pt (fs16)</option>
-                  <option value="19pt">19pt (fs19)</option>
-                  <option value="24pt">24pt (fs24)</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Color Palette & Custom HEX -->
-            <div class="form-group">
-              <label class="form-label">본문 글자 색상 (72색 팔레트 & 커스텀 HEX)</label>
-              <div class="color-chips">
-                <div class="color-chip active" style="background:#2c2523" onclick="selectColor('#2c2523')" title="다크 세피아"></div>
-                <div class="color-chip" style="background:#333333" onclick="selectColor('#333333')" title="차콜 (네이버 표준)"></div>
-                <div class="color-chip" style="background:#111111" onclick="selectColor('#111111')" title="블랙"></div>
-                <div class="color-chip" style="background:#1a365d" onclick="selectColor('#1a365d')" title="미드나잇 네이비"></div>
-                <div class="color-chip" style="background:#5c1d24" onclick="selectColor('#5c1d24')" title="크림슨 레드"></div>
-                <div class="color-chip" style="background:#1c3d2e" onclick="selectColor('#1c3d2e')" title="포레스트 그린"></div>
-                <div class="color-chip" style="background:#555555" onclick="selectColor('#555555')" title="소프트 그레이"></div>
-              </div>
-              <div class="custom-color-wrap">
-                <input type="color" id="picker-color" value="#2c2523" onchange="onCustomColorPicked(this.value)">
-                <input type="text" id="input-hex-color" class="text-input" value="#2c2523" onchange="onCustomHexEntered(this.value)">
-              </div>
-            </div>
-
-            <!-- Alignment & Line Height -->
-            <div class="style-row">
-              <div>
-                <label class="form-label">정렬 (Align)</label>
-                <div class="btn-group" id="btn-group-align">
-                  <button type="button" class="active" onclick="setAlign('center')">가운데</button>
-                  <button type="button" onclick="setAlign('left')">좌측</button>
-                  <button type="button" onclick="setAlign('right')">우측</button>
+            <div class="module-body">
+              <div class="control-row">
+                <div>
+                  <label class="field-label">서체 (FONT_FAMILY)</label>
+                  <select id="sel-font-family" class="select-control" onchange="applyTypography()">
+                    <option value="'Maru Buri', serif" selected>마루부리 (MaruBuri)</option>
+                    <option value="'Nanum Gothic', sans-serif">기본서체 (NanumGothic)</option>
+                    <option value="'Nanum Myeongjo', serif">나눔명조 (NanumMyeongjo)</option>
+                    <option value="'Nanum Barun Gothic', sans-serif">나눔바른고딕</option>
+                    <option value="'Noto Sans KR', sans-serif">본고딕 (NotoSans)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label">글자 크기 (FONT_SIZE)</label>
+                  <select id="sel-font-size" class="select-control" onchange="applyTypography()">
+                    <option value="11pt">11pt (fs11)</option>
+                    <option value="13pt">13pt (fs13)</option>
+                    <option value="15pt" selected>15pt (네이버 표준)</option>
+                    <option value="16pt">16pt (fs16)</option>
+                    <option value="19pt">19pt (fs19)</option>
+                    <option value="24pt">24pt (fs24)</option>
+                  </select>
                 </div>
               </div>
-              <div>
-                <label class="form-label">줄간격 (Line Height)</label>
-                <div class="btn-group" id="btn-group-lineheight">
-                  <button type="button" onclick="setLineHeight('1.6')">160%</button>
-                  <button type="button" class="active" onclick="setLineHeight('1.8')">180%</button>
-                  <button type="button" onclick="setLineHeight('2.0')">200%</button>
+
+              <!-- Color Palette & Custom HEX -->
+              <div class="field-group">
+                <label class="field-label">글자 색상 (72 COLOR PALETTE & CUSTOM HEX)</label>
+                <div class="palette-grid">
+                  <div class="palette-pip active" style="background:#2c2523" onclick="selectColor('#2c2523')" title="Dark Sepia"></div>
+                  <div class="palette-pip" style="background:#333333" onclick="selectColor('#333333')" title="Standard Charcoal"></div>
+                  <div class="palette-pip" style="background:#111111" onclick="selectColor('#111111')" title="Pitch Black"></div>
+                  <div class="palette-pip" style="background:#1a365d" onclick="selectColor('#1a365d')" title="Deep Navy"></div>
+                  <div class="palette-pip" style="background:#5c1d24" onclick="selectColor('#5c1d24')" title="Crimson Wine"></div>
+                  <div class="palette-pip" style="background:#1c3d2e" onclick="selectColor('#1c3d2e')" title="Forest Green"></div>
+                  <div class="palette-pip" style="background:#555555" onclick="selectColor('#555555')" title="Muted Gray"></div>
+                </div>
+                <div class="custom-hex-row">
+                  <input type="color" id="picker-color" class="color-swatch-input" value="#2c2523" onchange="onCustomColorPicked(this.value)">
+                  <input type="text" id="input-hex-color" class="input-text" style="font-family:'JetBrains Mono',monospace;font-size:11px" value="#2c2523" onchange="onCustomHexEntered(this.value)">
+                </div>
+              </div>
+
+              <!-- Align & Line Height -->
+              <div class="control-row">
+                <div>
+                  <label class="field-label">정렬 (TEXT_ALIGN)</label>
+                  <div class="segmented-group" id="btn-group-align">
+                    <button type="button" class="segmented-btn active" onclick="setAlign('center')">가운데</button>
+                    <button type="button" class="segmented-btn" onclick="setAlign('left')">좌측</button>
+                    <button type="button" class="segmented-btn" onclick="setAlign('right')">우측</button>
+                  </div>
+                </div>
+                <div>
+                  <label class="field-label">행간 (LINE_HEIGHT)</label>
+                  <div class="segmented-group" id="btn-group-lineheight">
+                    <button type="button" class="segmented-btn" onclick="setLineHeight('1.6')">160%</button>
+                    <button type="button" class="segmented-btn active" onclick="setLineHeight('1.8')">180%</button>
+                    <button type="button" class="segmented-btn" onclick="setLineHeight('2.0')">200%</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Presets -->
+              <div class="field-group" style="margin-bottom:0">
+                <label class="field-label">스타일 프리셋 (QUICK_PRESETS)</label>
+                <div class="presets-grid">
+                  <button class="preset-box" onclick="applyPreset('fantasy')">다크 판타지</button>
+                  <button class="preset-box" onclick="applyPreset('minimal')">현대 미니멀</button>
+                  <button class="preset-box" onclick="applyPreset('classic')">클래식 명조</button>
                 </div>
               </div>
             </div>
-
-            <!-- One-Click Preset Styles -->
-            <div class="form-group" style="margin-bottom:0">
-              <label class="form-label">원클릭 스타일 프리셋</label>
-              <div class="presets-container">
-                <button class="btn-preset" onclick="applyPreset('fantasy')">📜 다크 판타지</button>
-                <button class="btn-preset" onclick="applyPreset('minimal')">💼 현대 미니멀</button>
-                <button class="btn-preset" onclick="applyPreset('classic')">📖 클래식 명조</button>
-              </div>
-            </div>
-
           </div>
 
-          <!-- Card: Switch Sample Stories -->
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">
-                <span>📖</span> 연재작 원클릭 로드
+          <!-- Module: Select Serial Novel -->
+          <div class="module-card">
+            <div class="module-header">
+              <span class="module-title">
+                <span class="tag-num">03 //</span> 연재작 원클릭 로더
               </span>
-              <span class="card-tag">history/</span>
+              <span class="module-badge">history/</span>
             </div>
-            <select id="sel-sample-story" class="select-input" onchange="loadSampleStory(this.value)">
-              <option value="story-weaver">10-19: 침묵의 방직공과 별빛의 매듭 (최신 발행작)</option>
-              <option value="story-astronomer">10-15: 별을 감정하는 천문관과 가짜 운석</option>
-              <option value="story-blacksmith">10-16: 맹세를 벼리는 대장간과 구부러진 성검</option>
-              <option value="story-glassblower">10-17: 한숨을 빚는 유리공과 허공에 뜬 남작</option>
-            </select>
+            <div class="module-body">
+              <select id="sel-sample-story" class="select-control" onchange="loadSampleStory(this.value)">
+                <option value="story-weaver">10-19: 침묵의 방직공과 별빛의 매듭 (최신 발행작)</option>
+                <option value="story-astronomer">10-15: 별을 감정하는 천문관과 가짜 운석</option>
+                <option value="story-blacksmith">10-16: 맹세를 벼리는 대장간과 구부러진 성검</option>
+                <option value="story-glassblower">10-17: 한숨을 빚는 유리공과 허공에 뜬 남작</option>
+              </select>
+            </div>
           </div>
 
         </div>
 
-        <!-- Right: Live SmartEditor ONE Canvas -->
-        <div class="editor-frame">
+        <!-- Right Main Panel: SmartEditor ONE Canvas & Live Preview -->
+        <div class="editor-section">
           
-          <!-- SmartEditor Header Bar -->
-          <div class="editor-topbar">
-            <div class="editor-meta-status">
-              <span class="naver-logo-pill">N BLOG</span>
-              <span>스마트에디터 ONE • 실시간 DOM 에뮬레이터</span>
+          <!-- System Status Bar -->
+          <div class="editor-sys-header">
+            <div class="editor-sys-status">
+              <span class="naver-tag-spec">N BLOG</span>
+              <span>SMARTEDITOR ONE // DOM_EMULATOR</span>
             </div>
-            <div class="editor-actions">
-              <button class="btn-naver-save" onclick="logPlaywrightAction('Save Draft', 'Temporary draft saved to localStorage')">임시저장 (0)</button>
-              <button class="btn-naver-publish" onclick="logPlaywrightAction('Publish Post', 'Triggered post confirmation modal & published')">발행</button>
+            <div class="editor-action-strip">
+              <button class="btn-hairline" onclick="logPlaywrightAction('Save Draft', 'Temporary draft saved to localStorage')">임시저장 (0)</button>
+              <button class="btn-hairline primary" onclick="logPlaywrightAction('Publish Post', 'Triggered post confirmation modal & published')">발행</button>
             </div>
           </div>
 
-          <!-- SmartEditor Toolbar Mock -->
-          <div class="se-toolbar-mock">
-            <div class="se-tool-item" id="tb-font-name">마루부리 ▾</div>
-            <div class="se-tool-item" id="tb-font-size">15 ▾</div>
-            <div class="se-tool-divider"></div>
-            <div class="se-tool-item" style="font-weight:bold">B</div>
-            <div class="se-tool-item" style="font-style:italic">I</div>
-            <div class="se-tool-item" style="text-decoration:underline">U</div>
-            <div class="se-tool-item" style="text-decoration:line-through">S</div>
-            <div class="se-tool-divider"></div>
-            <div class="se-tool-item">
-              <span id="tb-color-chip" style="display:inline-block;width:12px;height:12px;background:#2c2523;border-radius:2px;margin-right:2px"></span> 가 ▾
+          <!-- Hairline Replicated Toolbar -->
+          <div class="se-toolbar-hairline">
+            <div class="se-tool-btn" id="tb-font-name">마루부리 ▾</div>
+            <div class="se-tool-btn" id="tb-font-size">15 ▾</div>
+            <div class="se-tool-sep"></div>
+            <div class="se-tool-btn" style="font-weight:bold">B</div>
+            <div class="se-tool-btn" style="font-style:italic">I</div>
+            <div class="se-tool-btn" style="text-decoration:underline">U</div>
+            <div class="se-tool-btn" style="text-decoration:line-through">S</div>
+            <div class="se-tool-sep"></div>
+            <div class="se-tool-btn">
+              <span id="tb-color-chip" style="display:inline-block;width:10px;height:10px;background:#2c2523;margin-right:2px"></span> 가 ▾
             </div>
-            <div class="se-tool-item" id="tb-align">가운데 정렬 ▾</div>
-            <div class="se-tool-item" id="tb-lineheight">1.8 ▾</div>
-            <div class="se-tool-divider"></div>
-            <div class="se-tool-item">인용구 ▾</div>
-            <div class="se-tool-item">구분선</div>
-            <div class="se-tool-item">링크</div>
-            <div class="se-tool-item">사진</div>
-            <div class="se-tool-item">동영상</div>
-            <div class="se-tool-item">스티커</div>
+            <div class="se-tool-btn" id="tb-align">가운데 정렬 ▾</div>
+            <div class="se-tool-btn" id="tb-lineheight">1.8 ▾</div>
+            <div class="se-tool-sep"></div>
+            <div class="se-tool-btn">인용구 ▾</div>
+            <div class="se-tool-btn">구분선</div>
+            <div class="se-tool-btn">사진</div>
+            <div class="se-tool-btn">링크</div>
           </div>
 
-          <!-- Editor Document Body -->
-          <div class="editor-canvas">
-            <div class="doc-category" id="canvas-category">Quatsch (판타지 단편) > 소설</div>
-            <h1 class="doc-title" id="canvas-title">기억을 거래하는 신비한 은빛 상점과 침묵의 방직공</h1>
-            
-            <div class="doc-meta">
-              <span>작성자: <strong>orselv99</strong></span>
-              <span>•</span>
-              <span id="canvas-date">2026. 10. 19. 13:00</span>
-              <span>•</span>
-              <span style="color:#059669">공개 (전체공개)</span>
+          <!-- Document Canvas Area -->
+          <div class="doc-canvas-wrap">
+            <div class="doc-category-line" id="canvas-category">QUATSCH // 환상문학 단편</div>
+            <h1 class="doc-title-h1" id="canvas-title">기억을 거래하는 신비한 은빛 상점과 침묵의 방직공</h1>
+
+            <div class="doc-metadata-strip">
+              <span>AUTHOR: <strong>orselv99</strong></span>
+              <span>//</span>
+              <span id="canvas-date">DATE: 2026. 10. 19. 13:00</span>
+              <span>//</span>
+              <span style="color:var(--naver-green)">VISIBILITY: PUBLIC</span>
             </div>
 
             <!-- Etching Illustration -->
-            <div class="doc-illustration-wrap">
+            <div class="doc-etching-frame">
               <img id="canvas-image" src="assets/sample_illustration.webp" alt="침묵의 방직공과 별빛의 매듭 삽화" onerror="this.src='assets/02_published_post.png'">
-              <div class="doc-illustration-caption">
-                ▲ Style Spec: Detailed monochrome pen & ink etching, cross-hatching, parchment #ece0c6 background
+              <div class="doc-etching-meta">
+                FIG_01 // DETAILED MONOCHROME PEN & INK ETCHING (#ECE0C6 PARCHMENT SPEC)
               </div>
             </div>
 
-            <!-- Novel Content (Subject to typography live changes) -->
-            <div class="doc-content" id="canvas-content" style="font-family:'Maru Buri', serif; font-size:15pt; color:#2c2523; line-height:1.8; text-align:center;">
+            <!-- Story Content (Real-time Typography Applied) -->
+            <div class="doc-body-content" id="canvas-content" style="font-family:'Maru Buri', serif; font-size:15pt; color:#2c2523; line-height:1.8; text-align:center;">
               <blockquote>
                 "말(言)이란 공기 중에 흩어지는 가벼운 먼지에 불과하나, 입술 안쪽에서 삼켜진 침묵은 무쇠보다 무겁게 가라앉아 마침내 은실의 광택을 띤다."<br>
                 — 『북방 성채 직조공 길드의 오랜 규약록』 제4장 중
@@ -1222,16 +1339,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
               </p>
             </div>
 
-            <!-- Dynamic Tags Section -->
-            <div class="doc-tags-section" id="canvas-tags">
-              <span class="doc-tag-label">태그:</span>
-              <a href="#" class="doc-tag-pill">#기억</a>
-              <a href="#" class="doc-tag-pill">#거래</a>
-              <a href="#" class="doc-tag-pill">#은빛</a>
-              <a href="#" class="doc-tag-pill">#상점</a>
-              <a href="#" class="doc-tag-pill">#침묵</a>
-              <a href="#" class="doc-tag-pill">#방직공</a>
-              <a href="#" class="doc-tag-pill">#판타지소설</a>
+            <!-- Dynamic Extracted Tags -->
+            <div class="doc-tags-row" id="canvas-tags">
+              <span class="doc-tags-label">TAGS:</span>
+              <a href="#" class="tag-hairline-pip">#기억</a>
+              <a href="#" class="tag-hairline-pip">#거래</a>
+              <a href="#" class="tag-hairline-pip">#은빛</a>
+              <a href="#" class="tag-hairline-pip">#상점</a>
+              <a href="#" class="tag-hairline-pip">#침묵</a>
+              <a href="#" class="tag-hairline-pip">#방직공</a>
+              <a href="#" class="tag-hairline-pip">#판타지소설</a>
             </div>
 
           </div>
@@ -1241,33 +1358,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       </div>
 
       <!-- Playwright DOM Action & NLP Terminal -->
-      <div class="terminal-section">
+      <div class="terminal-container">
         <div class="terminal-header">
           <div class="terminal-title">
-            <div class="terminal-dots">
-              <span class="terminal-dot red"></span>
-              <span class="terminal-dot yellow"></span>
-              <span class="terminal-dot green"></span>
-            </div>
-            <span>Playwright Headless Event Stream & Regex Engine Trace</span>
+            <span class="status-pip"></span>
+            <span>PLAYWRIGHT_EVENT_STREAM // REGEX_TRACE</span>
           </div>
-          <button style="background:none;border:none;color:#64748b;font-size:0.75rem;cursor:pointer" onclick="clearTerminal()">Clear</button>
+          <button class="btn-hairline" style="padding:0.2rem 0.6rem;font-size:10px" onclick="clearTerminal()">CLEAR_LOG</button>
         </div>
         <div class="terminal-body" id="terminal-body">
-          <div class="log-line">
-            <span class="log-time">[Init]</span>
-            <span class="log-tag-pw">[Playwright]</span>
-            <span class="log-msg">Chromium persistent context loaded from './chrome_profile' (Session active)</span>
+          <div class="log-row">
+            <span class="log-time">[00:00:01]</span>
+            <span class="log-tag-pw">[PLAYWRIGHT]</span>
+            <span class="log-text">Chromium persistent context loaded from './chrome_profile' (Session active)</span>
           </div>
-          <div class="log-line">
-            <span class="log-time">[Init]</span>
-            <span class="log-tag-dom">[SmartEditor]</span>
-            <span class="log-msg">SmartEditor ONE React components mounted (.se-component-content ready)</span>
+          <div class="log-row">
+            <span class="log-time">[00:00:02]</span>
+            <span class="log-tag-dom">[SMARTEDITOR]</span>
+            <span class="log-text">SmartEditor ONE React components mounted (.se-component-content ready)</span>
           </div>
-          <div class="log-line">
-            <span class="log-time">[Init]</span>
-            <span class="log-tag-nlp">[Regex NLP]</span>
-            <span class="log-msg">Loaded VERB_STRIP_REGEX, ADJ_STRIP_REGEX, JOSA_STRIP_REGEX (Lookbehind enabled)</span>
+          <div class="log-row">
+            <span class="log-time">[00:00:03]</span>
+            <span class="log-tag-nlp">[REGEX_NLP]</span>
+            <span class="log-text">Loaded VERB_STRIP_REGEX, ADJ_STRIP_REGEX, JOSA_STRIP_REGEX (Lookbehind enabled)</span>
           </div>
         </div>
       </div>
@@ -1275,67 +1388,69 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <!-- TAB 2: 70 NOVELS ARCHIVE -->
     <section id="tab-archive" class="tab-content">
-      <div class="archive-controls">
-        <div class="archive-filters">
-          <button class="filter-btn active" onclick="filterPosts('all', this)">전체보기 (70)</button>
-          <button class="filter-btn" onclick="filterPosts('2026-10', this)">2026-10 (20)</button>
-          <button class="filter-btn" onclick="filterPosts('2026-09', this)">2026-09 (30)</button>
-          <button class="filter-btn" onclick="filterPosts('2026-08', this)">2026-08 (20)</button>
+      <div class="archive-header-bar">
+        <div class="filter-tabs">
+          <button class="filter-tab-btn active" onclick="filterPosts('all', this)">ALL_POSTS (70)</button>
+          <button class="filter-tab-btn" onclick="filterPosts('2026-10', this)">2026-10 (20)</button>
+          <button class="filter-tab-btn" onclick="filterPosts('2026-09', this)">2026-09 (30)</button>
+          <button class="filter-tab-btn" onclick="filterPosts('2026-08', this)">2026-08 (20)</button>
         </div>
-        <div class="search-box">
-          <input type="text" id="post-search" class="search-input" placeholder="제목 또는 태그 검색..." oninput="onSearchPosts(this.value)">
+        <div>
+          <input type="text" id="post-search" class="search-input-box" placeholder="FILTER BY TITLE OR TAG..." oninput="onSearchPosts(this.value)">
         </div>
       </div>
 
-      <div class="posts-grid" id="posts-grid">
+      <div class="archive-cards-grid" id="posts-grid">
         <!-- Rendered dynamically from posts JSON -->
       </div>
     </section>
 
     <!-- TAB 3: ARCHITECTURE -->
     <section id="tab-arch" class="tab-content">
-      <div class="arch-grid">
-        <div class="metric-card">
-          <div class="metric-num">2.1s</div>
-          <div class="metric-desc">70편 메타데이터 수집 속도 (종전 120초 대비 60배 단축)</div>
+      <div class="metrics-bar">
+        <div class="metric-cell">
+          <div class="metric-value">2.1s</div>
+          <div class="metric-caption">70편 메타데이터 수집 속도 (종전 120초 대비 60배 단축)</div>
         </div>
-        <div class="metric-card">
-          <div class="metric-num">100%</div>
-          <div class="metric-desc">70편 글 태그 추출 및 스마트에디터 스타일 마이그레이션 성공률</div>
+        <div class="metric-cell">
+          <div class="metric-value">100%</div>
+          <div class="metric-caption">70편 글 태그 추출 및 스마트에디터 스타일 마이그레이션 성공률</div>
         </div>
-        <div class="metric-card">
-          <div class="metric-num">0 MB</div>
-          <div class="metric-desc">JVM 및 외부 무거운 언어팩 의존성 없이 순수 정규식으로 형태소 파싱</div>
+        <div class="metric-cell">
+          <div class="metric-value">0 MB</div>
+          <div class="metric-caption">JVM/C++ 바이너리 의존성 없는 순수 정규식 형태소 엔진</div>
         </div>
       </div>
 
-      <div class="arch-flowchart">
-        <h3 style="font-size:1.1rem;margin-bottom:1rem;color:#93c5fd">4단계 무인 파이프라인 아키텍처</h3>
-        <div class="flow-steps">
-          <div class="flow-step">
-            <div class="flow-badge">1</div>
-            <div class="flow-info">
+      <div class="spec-block">
+        <div class="spec-header">
+          SYSTEM_SPEC // 4-STAGE PIPELINE ARCHITECTURE
+        </div>
+        <div class="spec-list">
+          <div class="spec-item">
+            <span class="spec-idx">01 //</span>
+            <div class="spec-detail">
               <h4>AI 멀티모달 콘텐츠 생성 (Gemini 2.5 Flash + Imagen 3)</h4>
-              <p>7대 판타지 테마 순환, 3인칭 관찰자 시점, 16:9 와이드 #ece0c6 양피지 톤 에칭 펜화 동판화 일러스트 생성</p>
+              <p>7대 판타지 테마 순환 알고리즘, 3인칭 관찰자 시점 고정, 16:9 와이드 #ece0c6 양피지 톤 에칭 펜화 동판화 일러스트 생성</p>
             </div>
           </div>
-          <div class="flow-step">
-            <div class="flow-badge">2</div>
-            <div class="flow-info">
+          <div class="spec-item">
+            <span class="spec-idx">02 //</span>
+            <div class="spec-detail">
               <h4>Playwright 스마트에디터 ONE 서식 주입 및 자동 발행</h4>
-              <p>본문 선택(Control+A) 후 폰트, 크기, 커스텀 HEX 색상 주입(.se-color-picker-more-button), 정렬/줄간격 적용</p>
+              <p>본문 선택(Control+A) 후 폰트, 크기, 커스텀 HEX 색상 주입(.se-color-picker-more-button), 정렬/줄간격 일괄 제어</p>
             </div>
           </div>
-          <div class="flow-step">
-            <div class="flow-badge">3</div>
-            <div class="flow-info">
-              <h4>Google Drive 클라우드 원고 & 삽화 아카이빙 (3회 지수 백오프)</h4>
-              <p>안정적인 OAuth 2.0 리프레시 토큰 기반, 네트워크 일시 오류 시 2초/4초/8초 대기 후 자동 재시도</p>
+          <div class="spec-item">
+            <span class="spec-idx">03 //</span>
+            <div class="spec-detail">
+              <h4>Google Drive 클라우드 아카이빙 (3회 지수 백오프)</h4>
+              <p>OAuth 2.0 리프레시 토큰 기반, 일시적 네트워크 장애 시 2초/4초/8초 대기 후 자동 재시도</p>
             </div>
           </div>
-          <div class="flow-step">
-            <div class="flow-badge">4</div>
-            <div class="flow-info">
+          <div class="spec-item">
+            <span class="spec-idx">04 //</span>
+            <div class="spec-detail">
               <h4>비상 이메일 SOS 알림 & history/ 월별 파티셔닝</h4>
               <p>최종 실패 시 관리자 Gmail로 원고 및 에러 로그 자동 전송, history/{yyyy-mm}.json으로 경량화 보존</p>
             </div>
@@ -1343,11 +1458,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
       </div>
     </section>
+
   </main>
 
-  <!-- Footer -->
+  <!-- Technical Footer -->
   <footer>
-    <p>Naver Blog Automation & Live Runtime Sandbox | Built by <a href="https://github.com/orselv99/automation-posting" target="_blank">orselv99</a></p>
+    <div>EDITORIAL RATIONALISM // SWISS TECHNICAL RUNTIME</div>
+    <div>DESIGN SPEC: <a href="https://orselv99.github.io/artifacts/" target="_blank">orselv99.github.io/artifacts</a> | BUILT WITH PLAYWRIGHT</div>
   </footer>
 
   <script>
@@ -1357,13 +1474,22 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     // NLP Regex Patterns (Python과 1:1 포팅)
     const VERB_STRIP_REGEX = /(?:하다|하는|하며|하고|했던|하여|되는|된|되며|되고|위한|통한|따른)$/;
     const ADJ_STRIP_REGEX = /(?:있는|없는|같은|어떤|모든|새로운|깊은|높은|밝은|어두운|신비한|거대한|작은|따뜻한|차가운)$/;
-    // Javascript lookbehind support: (?<=[가-힣]{2})
     const JOSA_STRIP_REGEX = /(?<=[가-힣]{2})(?:에서|에게|으로|로|의|과|와|을|를|은|는|이|가|도)$/;
 
     // State
     let currentAlign = 'center';
     let currentLineHeight = '1.8';
     let activeFilter = 'all';
+
+    // Theme Toggle (Dark <-> Light)
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      document.getElementById('lbl-theme').innerText = next.toUpperCase();
+      logPlaywrightAction('Theme Switched', 'Interface theme set to: ' + next);
+    }
 
     // Switch Tab
     function switchTab(tabId) {
@@ -1376,7 +1502,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       const targetContent = document.getElementById('tab-' + tabId);
       if (targetContent) targetContent.classList.add('active');
 
-      logPlaywrightAction('Navigation', 'Switched UI tab to: ' + tabId);
+      logPlaywrightAction('NAV_TAB', 'Switched section view to: ' + tabId);
     }
 
     // Real-time NLP Tag Extraction
@@ -1384,7 +1510,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       const title = document.getElementById('input-title').value.trim();
       if (!title) return;
 
-      logPlaywrightAction('NLP Trigger', 'Extracting tags for: "' + title + '"');
+      logPlaywrightAction('NLP_PIPELINE', 'Parsing tokens for: "' + title + '"');
 
       // 1. Tokenize
       const rawTokens = title.split(/\\s+/);
@@ -1402,7 +1528,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         // Check Adj
         if (ADJ_STRIP_REGEX.test(word)) {
-          adjLog = word + ' (제거)';
+          adjLog = word + ' (REMOVED)';
           return;
         }
 
@@ -1429,20 +1555,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       if (!extractedTags.includes('#판타지소설')) extractedTags.push('#판타지소설');
 
       // Update Visualizer
-      document.getElementById('nlp-step-2').innerText = verbLog || '해당 없음';
-      document.getElementById('nlp-step-3').innerText = adjLog || '해당 없음';
-      document.getElementById('nlp-step-4').innerText = josaLog || '해당 없음';
+      document.getElementById('nlp-step-2').innerText = verbLog || 'NO_MATCH';
+      document.getElementById('nlp-step-3').innerText = adjLog || 'NO_MATCH';
+      document.getElementById('nlp-step-4').innerText = josaLog || 'NO_MATCH';
       document.getElementById('nlp-step-5').innerText = extractedTags.slice(0, 4).join(' ') + '...';
 
       // Update Editor Tags
       const tagsContainer = document.getElementById('canvas-tags');
-      tagsContainer.innerHTML = '<span class="doc-tag-label">태그:</span>' + 
-        extractedTags.map(t => `<a href="#" class="doc-tag-pill">${t}</a>`).join(' ');
+      tagsContainer.innerHTML = '<span class="doc-tags-label">TAGS:</span>' + 
+        extractedTags.map(t => `<a href="#" class="tag-hairline-pip">${t}</a>`).join(' ');
 
       // Update Title
       document.getElementById('canvas-title').innerText = title;
 
-      logPlaywrightAction('NLP Result', 'Generated tags: ' + extractedTags.join(', '));
+      logPlaywrightAction('NLP_TAGS', 'Extracted: ' + extractedTags.join(', '));
     }
 
     // Apply Typography
@@ -1464,13 +1590,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       document.getElementById('tb-font-size').innerText = size.replace('pt', '') + ' ▾';
       document.getElementById('tb-color-chip').style.background = color;
 
-      logPlaywrightAction('Style Applied', `font: ${fontNameClean}, size: ${size}, color: ${color}, align: ${currentAlign}, line-height: ${currentLineHeight}`);
+      logPlaywrightAction('DOM_STYLE', `font: ${fontNameClean}, size: ${size}, color: ${color}, align: ${currentAlign}, lh: ${currentLineHeight}`);
     }
 
     // Select Color from Chips
     function selectColor(hex) {
-      document.querySelectorAll('.color-chip').forEach(c => c.classList.remove('active'));
-      const target = Array.from(document.querySelectorAll('.color-chip')).find(c => c.getAttribute('onclick').includes(hex));
+      document.querySelectorAll('.palette-pip').forEach(c => c.classList.remove('active'));
+      const target = Array.from(document.querySelectorAll('.palette-pip')).find(c => c.getAttribute('onclick').includes(hex));
       if (target) target.classList.add('active');
 
       document.getElementById('picker-color').value = hex;
@@ -1480,7 +1606,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     function onCustomColorPicked(hex) {
       document.getElementById('input-hex-color').value = hex;
-      document.querySelectorAll('.color-chip').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.palette-pip').forEach(c => c.classList.remove('active'));
       applyTypography();
     }
 
@@ -1494,8 +1620,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     function setAlign(align) {
       currentAlign = align;
       const group = document.getElementById('btn-group-align');
-      group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-      const target = Array.from(group.querySelectorAll('button')).find(b => b.getAttribute('onclick').includes(align));
+      group.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
+      const target = Array.from(group.querySelectorAll('.segmented-btn')).find(b => b.getAttribute('onclick').includes(align));
       if (target) target.classList.add('active');
       document.getElementById('tb-align').innerText = (align === 'center' ? '가운데 정렬' : align === 'left' ? '좌측 정렬' : '우측 정렬') + ' ▾';
       applyTypography();
@@ -1504,8 +1630,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     function setLineHeight(lh) {
       currentLineHeight = lh;
       const group = document.getElementById('btn-group-lineheight');
-      group.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-      const target = Array.from(group.querySelectorAll('button')).find(b => b.getAttribute('onclick').includes(lh));
+      group.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
+      const target = Array.from(group.querySelectorAll('.segmented-btn')).find(b => b.getAttribute('onclick').includes(lh));
       if (target) target.classList.add('active');
       document.getElementById('tb-lineheight').innerText = lh + ' ▾';
       applyTypography();
@@ -1538,16 +1664,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     function loadSampleStory(storyKey) {
       if (storyKey === 'story-weaver') {
         document.getElementById('input-title').value = "침묵의 방직공과 별빛의 매듭";
-        document.getElementById('canvas-date').innerText = "2026. 10. 19. 09:30";
+        document.getElementById('canvas-date').innerText = "DATE: 2026. 10. 19. 09:30";
       } else if (storyKey === 'story-astronomer') {
         document.getElementById('input-title').value = "별을 감정하는 천문관과 가짜 운석";
-        document.getElementById('canvas-date').innerText = "2026. 10. 15. 09:30";
+        document.getElementById('canvas-date').innerText = "DATE: 2026. 10. 15. 09:30";
       } else if (storyKey === 'story-blacksmith') {
         document.getElementById('input-title').value = "맹세를 벼리는 대장간과 구부러진 성검";
-        document.getElementById('canvas-date').innerText = "2026. 10. 16. 09:30";
+        document.getElementById('canvas-date').innerText = "DATE: 2026. 10. 16. 09:30";
       } else if (storyKey === 'story-glassblower') {
         document.getElementById('input-title').value = "한숨을 빚는 유리공과 허공에 뜬 남작";
-        document.getElementById('canvas-date').innerText = "2026. 10. 17. 09:30";
+        document.getElementById('canvas-date').innerText = "DATE: 2026. 10. 17. 09:30";
       }
       runNlpPipeline();
     }
@@ -1557,11 +1683,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       const terminal = document.getElementById('terminal-body');
       const time = new Date().toTimeString().split(' ')[0];
       const div = document.createElement('div');
-      div.className = 'log-line';
+      div.className = 'log-row';
       div.innerHTML = `
         <span class="log-time">[${time}]</span>
-        <span class="log-tag-pw">[Playwright]</span>
-        <span class="log-msg"><strong style="color:#60a5fa">${action}</strong>: ${detail}</span>
+        <span class="log-tag-pw">[PLAYWRIGHT]</span>
+        <span class="log-text"><strong style="color:var(--accent-spec)">${action}</strong>: ${detail}</span>
       `;
       terminal.appendChild(div);
       terminal.scrollTop = terminal.scrollHeight;
@@ -1575,19 +1701,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     function renderPostsGrid(posts) {
       const grid = document.getElementById('posts-grid');
       if (posts.length === 0) {
-        grid.innerHTML = '<div style="color:#64748b;padding:2rem;text-align:center;grid-column:1/-1">일치하는 포스팅이 없습니다.</div>';
+        grid.innerHTML = '<div style="color:var(--text-muted);padding:2.5rem;text-align:center;grid-column:1/-1;font-family:JetBrains Mono,monospace;font-size:12px">// NO_MATCHING_POSTS_FOUND</div>';
         return;
       }
       grid.innerHTML = posts.map(p => `
-        <div class="post-card">
-          <div class="post-card-date">발행일: ${p.date || '2026-10'}</div>
-          <div class="post-card-title">${p.title}</div>
-          <div class="post-card-theme">${p.theme || 'Fantasy Short'}</div>
-          <div class="post-card-tags">
-            ${(p.tags || []).map(t => `<span class="post-tag-chip">${t}</span>`).join('')}
+        <div class="archive-card">
+          <div class="arch-card-date">DATE // ${p.date || '2026-10'}</div>
+          <div class="arch-card-title">${p.title}</div>
+          <div class="arch-card-theme">${p.theme || 'FANTASY_SHORT'}</div>
+          <div class="arch-card-tags">
+            ${(p.tags || []).map(t => `<span class="arch-tag-chip">${t}</span>`).join('')}
           </div>
-          <div class="post-card-actions">
-            <button class="btn-card-load" onclick="loadPostIntoEditor('${encodeURIComponent(p.title)}')">에디터에서 열기</button>
+          <div class="arch-card-actions">
+            <button class="btn-card-open" onclick="loadPostIntoEditor('${encodeURIComponent(p.title)}')">[LOAD INTO EDITOR]</button>
           </div>
         </div>
       `).join('');
@@ -1595,7 +1721,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     function filterPosts(month, btn) {
       activeFilter = month;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.filter-tab-btn').forEach(b => b.classList.remove('active'));
       if (btn) btn.classList.add('active');
 
       let filtered = ALL_POSTS;
