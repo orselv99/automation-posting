@@ -18,11 +18,13 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
+from config_loader import get_config, PROJECT_ROOT
+
 def send_failure_email(
     schedule_title: str,
     error_message: str,
     error_traceback: str = "",
-    config_path: str = r"D:\.repo\.private\artifacts_1\config.json"
+    config_path: str = None
 ) -> bool:
     """
     Sends an alert email to the recipient when automation fails after retries.
@@ -32,29 +34,16 @@ def send_failure_email(
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Load configuration
-    config_file = Path(config_path)
-    recipient = "orselv99@gmail.com"
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    sender_email = "orselv99@gmail.com"
-    app_password = os.environ.get("GMAIL_APP_PASSWORD", "")
-
-    if config_file.exists():
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-                email_cfg = cfg.get("email_alert", {})
-                recipient = email_cfg.get("recipient", recipient)
-                smtp_server = email_cfg.get("smtp_server", smtp_server)
-                smtp_port = email_cfg.get("smtp_port", smtp_port)
-                sender_email = email_cfg.get("sender_email", sender_email)
-                if not app_password:
-                    app_password = email_cfg.get("app_password", "")
-        except Exception as e:
-            print(f"[!] config.json 읽기 오류: {e}")
+    cfg = get_config()
+    email_cfg = cfg.get("email_alert", {})
+    recipient = email_cfg.get("recipient", "orselv99@gmail.com")
+    smtp_server = email_cfg.get("smtp_server", "smtp.gmail.com")
+    smtp_port = email_cfg.get("smtp_port", 587)
+    sender_email = email_cfg.get("sender_email", "orselv99@gmail.com")
+    app_password = os.environ.get("GMAIL_APP_PASSWORD") or email_cfg.get("app_password", "")
 
     # Log to local failure alerts log file regardless of SMTP status
-    log_dir = Path(r"D:\.repo\.private\artifacts_1\generated")
+    log_dir = Path(cfg.get("output_dir", PROJECT_ROOT / "generated"))
     log_dir.mkdir(parents=True, exist_ok=True)
     alert_log_file = log_dir / "failure_alerts.log"
 

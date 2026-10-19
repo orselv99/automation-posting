@@ -1,23 +1,23 @@
 {
-  "blog_id": "sun_o_glitter",
-  "category_name": "Quatsch",
+  "blog_id": "${BLOG_ID}",
+  "category_name": "${CATEGORY_NAME}",
   "publish_mode": "immediate",
   "story_length_chars": 2000,
-  "chrome_profile_dir": "D:\\.repo\\.private\\artifacts_1\\chrome_profile",
-  "history_file": "D:\\.repo\\.private\\artifacts_1\\history.json",
-  "output_dir": "D:\\.repo\\.private\\artifacts_1\\generated",
+  "chrome_profile_dir": "${CHROME_PROFILE_DIR}",
+  "history_file": "${HISTORY_FILE}",
+  "output_dir": "${OUTPUT_DIR}",
   "email_alert": {
-    "recipient": "orselv99@gmail.com",
+    "recipient": "${EMAIL_RECIPIENT}",
     "schedule_title": "Daily Naver Blog Fantasy Novel",
     "smtp_server": "smtp.gmail.com",
     "smtp_port": 587,
-    "sender_email": "orselv99@gmail.com",
-    "app_password": ""
+    "sender_email": "${EMAIL_SENDER}",
+    "app_password": "${GMAIL_APP_PASSWORD}"
   },
   "google_drive": {
     "enabled": true,
-    "folder_path": "__generated__/gemini-hobby-fantasy-scene",
-    "local_mount_path": "",
+    "folder_path": "${GOOGLE_DRIVE_FOLDER}",
+    "local_mount_path": "${GOOGLE_DRIVE_LOCAL_PATH}",
     "convert_to_google_doc": true
   }
 }

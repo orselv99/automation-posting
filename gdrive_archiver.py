@@ -64,7 +64,8 @@ def _perform_single_archive(title: str, story_content: str, image_path: str = No
         return {"status": "success", "mode": "local", "path": str(doc_file)}
 
     # Option 2: Google Drive API using gdrive_token.json
-    token_file = Path(r"D:\.repo\.private\artifacts_1\gdrive_token.json")
+    from config_loader import PROJECT_ROOT
+    token_file = PROJECT_ROOT / "gdrive_token.json"
     if not token_file.exists():
         err_msg = "gdrive_token.json이 없습니다. 'python gdrive_auth.py'를 실행해 연동해 주세요."
         print(f"\n[!] Google Drive 아카이빙 오류: {err_msg}")
@@ -122,23 +123,17 @@ def archive_to_google_drive(
     title: str,
     story_content: str,
     image_path: str = None,
-    config_path: str = r"D:\.repo\.private\artifacts_1\config.json",
+    config_path: str = None,
     max_retries: int = 3
 ) -> dict:
     """
     Archives novel and illustration to Google Drive with 3-attempt retry loop.
     If all 3 attempts fail, sends a failure alert email.
     """
-    config_file = Path(config_path)
-    local_path = None
-    if config_file.exists():
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-                gdrive_cfg = cfg.get("google_drive", {})
-                local_path = gdrive_cfg.get("local_mount_path")
-        except Exception:
-            pass
+    from config_loader import get_config
+    cfg = get_config()
+    gdrive_cfg = cfg.get("google_drive", {})
+    local_path = gdrive_cfg.get("local_mount_path")
 
     last_error = ""
     last_tb = ""

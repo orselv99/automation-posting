@@ -8,7 +8,9 @@
 
 * `prompt_spec.md`: 고전 중세 다크판타지/신비주의 문학 창작 명세서 (테마 A~J 순환 및 금지어/서식 규칙)
 * `history.json`: 매일 발행된 소설의 날짜, 제목, 테마, 핵심 컨셉, 태그 아카이브 (소재 중복 원천 차단)
-* `config.json`: 블로그 ID (`sun_o_glitter`), 카테고리(`Quatsch`), 이메일 알림 설정 등
+* `config_loader.py`: `.env` 파일과 `config.json`을 연동하여 환경변수 및 상대경로를 자동 확장하는 중앙 설정 로더
+* `config.json`: 블로그 기본 설정 템플릿 (`.env` 환경변수로 값 바인딩)
+* `.env.example`: 로컬 환경 설정 템플릿 (블로그 ID, 이메일 알림 수신자, 크롬 프로필 경로 등)
 * `login_naver.py`: 전용 크롬 프로필(`chrome_profile/`)을 띄워 네이버에 1회 사전 로그인하는 도구
 * `naver_publisher.py`: Playwright 기반 스마트에디터 ONE 자동 글쓰기 (기본서체, 15pt, 마크다운 문법 자동 제거, 삽화 중간 삽입, 태그 등록 및 즉시 발행)
 * `publish_story.py`: 3회 재시도 루프와 최종 실패 시 이메일 알림(Fallback)이 내장된 블로그 발행기
@@ -33,10 +35,10 @@
 
 * 발행 중 일시적 네트워크 오류나 에디터 지연 발생 시 **최대 3회 자동 재시도** (10초, 20초 간격 점진적 대기)
 * 3회 모두 실패할 경우:
-  * 수신자: `orselv99@gmail.com`
+  * 수신자: `.env`의 `EMAIL_RECIPIENT`로 설정된 이메일 주소
   * 메일 제목: `[gemini-automation-failed] Daily Naver Blog Fantasy Novel`
   * 본문: 실패 사유, 발생 일시, 상세 트레이스백
-  * `config.json`의 `email_alert.app_password`에 구글 앱 비밀번호(16자리)를 입력하시면 즉시 이메일 발송 연동이 완료됩니다. (미설정 시에도 `./generated/failure_alerts.log`에 에러 내역이 안전하게 보존됩니다.)
+  * `.env`의 `GMAIL_APP_PASSWORD`에 구글 앱 비밀번호(16자리)를 입력하시면 즉시 이메일 발송 연동이 완료됩니다. (미설정 시에도 `./generated/failure_alerts.log`에 에러 내역이 안전하게 보존됩니다.)
 
 ---
 

@@ -15,15 +15,16 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
+from config_loader import PROJECT_ROOT
+
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-TOKEN_FILE = Path(r"D:\.repo\.private\artifacts_1\gdrive_token.json")
+TOKEN_FILE = PROJECT_ROOT / "gdrive_token.json"
 
 def find_credentials_file() -> Path:
-    base_dir = Path(r"D:\.repo\.private\artifacts_1")
-    candidates = list(base_dir.glob("client_secret*.json"))
+    candidates = list(PROJECT_ROOT.glob("client_secret*.json"))
     if candidates:
         return candidates[0]
-    return base_dir / "client_secret.json"
+    return PROJECT_ROOT / "client_secret.json"
 
 def main():
     print("=" * 70, flush=True)

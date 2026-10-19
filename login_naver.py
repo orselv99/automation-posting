@@ -8,8 +8,12 @@ import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-PROFILE_DIR = Path(r"D:\.repo\.private\artifacts_1\chrome_profile")
+from config_loader import get_config, PROJECT_ROOT
+
+cfg = get_config()
+PROFILE_DIR = Path(cfg.get("chrome_profile_dir", PROJECT_ROOT / "chrome_profile"))
 PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+BLOG_ID = cfg.get("blog_id", "sun_o_glitter")
 
 def main():
     print("=" * 60)
@@ -41,7 +45,7 @@ def main():
             pass
 
         # Verify login by navigating to Naver main
-        page.goto("https://blog.naver.com/sun_o_glitter")
+        page.goto(f"https://blog.naver.com/{BLOG_ID}")
         page.wait_for_timeout(3000)
         print("\n로그인 세션 저장을 완료했습니다. 브라우저를 닫습니다.")
         context.close()

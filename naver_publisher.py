@@ -16,29 +16,26 @@ if sys.stdout.encoding != 'utf-8':
     except Exception:
         pass
 
+from config_loader import get_config, PROJECT_ROOT
+
 def publish_to_naver_blog(
     title: str,
     body_part1: str,
     image_path: str,
     body_part2: str,
     tags: list[str],
-    config_path: str = r"D:\.repo\.private\artifacts_1\config.json",
+    config_path: str = None,
     headless: bool = False
 ) -> dict:
     """
     Publishes a novel and illustration to Naver Blog using Playwright.
     """
-    config_file = Path(config_path)
-    if not config_file.exists():
-        raise FileNotFoundError(f"Config file not found: {config_path}")
-
-    with open(config_file, "r", encoding="utf-8") as f:
-        config = json.load(f)
+    config = get_config()
 
     blog_id = config.get("blog_id", "sun_o_glitter")
     category_name = config.get("category_name", "Quatsch")
-    profile_dir = Path(config.get("chrome_profile_dir", r"D:\.repo\.private\artifacts_1\chrome_profile"))
-    output_dir = Path(config.get("output_dir", r"D:\.repo\.private\artifacts_1\generated"))
+    profile_dir = Path(config.get("chrome_profile_dir", PROJECT_ROOT / "chrome_profile"))
+    output_dir = Path(config.get("output_dir", PROJECT_ROOT / "generated"))
     output_dir.mkdir(parents=True, exist_ok=True)
 
     screenshot_path = output_dir / f"publish_result_{int(time.time())}.png"
