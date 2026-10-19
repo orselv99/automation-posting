@@ -57,20 +57,54 @@
 
 ---
 
-## 3. 왜 Selenium이 아닌 Playwright였는가?
+## 3. 왜 전통의 Selenium이 아닌 Playwright를 선택했는가? (기술적 비교 분석)
 
-콘텐츠 생성 파이프라인이 갖춰진 뒤, 가장 큰 기술적 관건은 **"네이버 블로그 발행 자동화 도구로 무엇을 선택할 것인가?"**였습니다.
+웹 브라우저 자동화의 대명사는 오랫동안 **Selenium WebDriver**였습니다. 시중의 수많은 네이버 블로그 자동화 예제나 강의도 대부분 Selenium을 기반으로 작성되어 있습니다.
 
-과거 웹 자동화의 표준은 Selenium이었으나, 이번 프로젝트에서는 주저 없이 **Playwright**를 선택했습니다. 그 이유는 다음과 같습니다:
+그럼에도 불구하고 이번 프로젝트에서 **Selenium을 전면 배제하고 Microsoft의 Playwright를 단독 채택한 이유**는 단순한 '최신 기술 선호'가 아니라, **네이버 스마트에디터 ONE의 복잡한 React SPA 아키텍처를 안정적으로 제어하기 위한 명확한 엔지니어링 판단** 때문이었습니다.
 
-| 비교 항목 | Selenium WebDriver | Microsoft Playwright |
-| :--- | :--- | :--- |
-| **대기 메커니즘** | 명시적 대기(`time.sleep`, `WebDriverWait`) 빈번히 필요 | **Auto-Wait**: 엘리먼트가 조작 가능할 때까지 자동 대기 |
-| **복잡한 DOM/SPA 지원** | React 기반 스마트에디터 ONE의 동적 렌더링 추적에 취약 | 가상 DOM 및 비동기 이벤트에 대한 견고한 셀렉터 엔진 |
-| **세션 유지 관리** | 브라우저 프로필 설정이 번거롭고 크래시 빈번 | `userDataDir` 영속화 및 `storageState` 추출이 네이티브 지원 |
-| **실행 속도 및 안정성** | HTTP JSON-Wire 프로토콜 오버헤드 존재 | CDP(Chrome DevTools Protocol) 직접 통신으로 압도적 반응 속도 |
+### (1) 아키텍처의 차이: HTTP WebDriver vs 단일 WebSocket (CDP)
+* **Selenium**: 클라이언트 코드 → WebDriver 바이너리(`chromedriver.exe`) → 브라우저 간의 **HTTP 기반 REST/JSON Wire Protocol** 통신 구조입니다.
+  * 버튼을 찾고, 클릭하고, 텍스트를 입력할 때마다 매번 독립된 HTTP 요청/응답 왕복(Round-trip)이 발생하여 지연(Latency)이 누적됩니다.
+  * 또한 사용자 로컬 크롬 브라우저가 자동 업데이트될 때마다 드라이버 버전 불일치 에러(`SessionNotCreatedException`)가 발생해 수동으로 드라이버를 다시 깔아야 하는 운영상 번거로움이 큽니다.
+* **Playwright**: 브라우저와 단일 양방향 **WebSocket 연결**을 수립하고 **Chrome DevTools Protocol (CDP)**을 통해 브라우저 코어 엔진과 직접 통신합니다.
+  * 별도의 드라이버 실행 파일 관리 없이 내장된 브라우저 바이너리를 제어하며, 초당 수십 번의 DOM 질의와 상태 감지가 제로 레이턴시 수준으로 수행됩니다.
 
-특히 네이버의 **스마트에디터 ONE**은 단순 HTML 폼이 아니라 React 컴포넌트로 구성된 복잡한 리치 텍스트 에디터입니다. 클릭 타이밍이 100ms만 어긋나도 툴바가 닫히거나 포커스가 풀리는데, Playwright의 **Actionability Check(클릭 가능할 때까지 엘리먼트의 가시성, 애니메이션 완료, 안정 상태를 자동 확인)** 기능 덕분에 스크립트의 신뢰도를 극대화할 수 있었습니다.
+### (2) 가장 결정적인 이유: Actionability Checks & Auto-Wait (Flaky 현상의 종결)
+네이버 스마트에디터 ONE은 정적 HTML 문서가 아닙니다. 상단 툴바의 글씨 색상 버튼이나 폰트 드롭다운을 누르면 동적으로 하위 React 컴포넌트 트리가 렌더링되고, CSS 트랜지션 애니메이션이 끝난 뒤에야 클릭 이벤트 리스너가 등록됩니다.
+
+* **Selenium의 한계 (간헐적 실패의 주범)**:
+  * 셀레늄은 요소가 DOM 트리에 존재하기만 하면 즉시 클릭을 시도합니다.
+  * 그 결과 컴포넌트가 화면에 페이드인되는 중이거나 툴바 애니메이션이 진행 중일 때 클릭이 씹히거나, `ElementClickInterceptedException`, `StaleElementReferenceException`이 빈번히 발생합니다.
+  * 이를 막기 위해 코드 곳곳에 `time.sleep(2)`을 도배하거나 복잡한 `WebDriverWait(driver, 10).until(EC.element_to_be_clickable(...))`를 덕지덕지 붙이게 되며, 이는 실행 시간을 기하급수적으로 늘리면서도 타이밍 이슈를 근본적으로 해결하지 못합니다.
+* **Playwright의 해결책 (Actionability Checks)**:
+  * Playwright는 모든 액션(`click()`, `fill()`, `press()`)을 실행하기 직전에 브라우저 내부에서 다음 **5가지 동작 가능 조건(Actionability)**을 **자동으로 대기(Auto-Wait)**합니다:
+    1. **Attached**: 대상 엘리먼트가 실제 DOM에 마운트되어 있는가?
+    2. **Visible**: `display: none`이나 투명도가 아닌 실제 화면에 렌더링되어 있는가?
+    3. **Stable**: CSS 애니메이션이나 레이아웃 이동이 완전히 멈춰 안정적인 좌표인가?
+    4. **Receives Events**: 다른 레이어나 툴바 오버레이에 가려지지 않고 직접 마우스 이벤트를 수신할 수 있는가?
+    5. **Enabled**: 비활성화(disabled) 상태가 아닌 조작 가능한 상태인가?
+  * 단 한 줄의 `await page.click("button[data-name='color']")`만으로도 100% 안전하게 준비 상태를 기다려 실행하므로, 스크립트 내에 `time.sleep()`을 단 1초도 넣을 필요가 없어집니다.
+
+### (3) 프레임 격리와 중첩 DOM 탐색 (`frame_locator`)
+* 네이버 블로그는 `mainFrame`이라는 전통적인 중첩 `iframe` 내부에 에디터가 로드되는 구조를 가집니다.
+* Selenium에서는 프레임 내부를 조작하려면 `driver.switch_to.frame("mainFrame")`을 명시적으로 호출해야 하고, 작업이 끝나면 다시 `driver.switch_to.default_content()`로 빠져나와야 하므로 컨텍스트 스위칭 실수가 잦고 코드가 오염됩니다.
+* Playwright는 `page.frame_locator("#mainFrame").locator(...)` 체이닝을 기본 지원하여, 프레임 경계를 로케이터 내부로 완전히 캡슐화해 안전하고 직관적인 조작이 가능합니다.
+
+### (4) 네이티브 `asyncio` 지원과 비동기 병렬 파이프라인
+* Playwright 파이썬 SDK는 공식적으로 완전한 비동기 API(`async_playwright`)를 제공합니다.
+* 덕분에 브라우저 자동화와 외부 HTTP 비동기 통신(`httpx`, `asyncio.gather`)을 단일 파이썬 이벤트 루프 안에서 매끄럽게 결합할 수 있었습니다. (이 점은 2편에서 70편의 글 목록을 2.1초 만에 초고속 병렬 수집하는 핵심 토대가 되었습니다.)
+
+### (5) 기술 사양 비교 요약
+
+| 비교 항목 | Selenium WebDriver | Microsoft Playwright | 본 프로젝트에서의 실전 의의 |
+| :--- | :--- | :--- | :--- |
+| **통신 프로토콜** | HTTP REST (chromedriver 중계) | **CDP 직접 통신 (단일 WebSocket)** | 크롬 버전 업데이트 시 드라이버 깨짐 제로, 압도적 응답 속도 |
+| **대기 메커니즘** | 수동 명시적 대기(`time.sleep`) 필수 | **내장 Actionability Auto-Wait** | 스마트에디터 동적 툴바/컴포넌트 렌더링 씹힘 100% 방지 |
+| **iframe 제어** | `switch_to.frame` 컨텍스트 전환 필요 | **`frame_locator` 자동 바인딩** | 네이버 특유의 `mainFrame` 중첩 구조를 깔끔하게 캡슐화 |
+| **비동기 지원** | 기본 동기(Sync) 블로킹 구조 | **완전한 `asyncio` 지원** | 대량 데이터 스크래핑 및 멀티태스킹 파이프라인과 완벽 결합 |
+| **세션 보존** | 크롬 프로필 락 및 크래시 빈번 | **`launch_persistent_context` 네이티브** | 2단계 인증 쿠키 및 로컬스토리지 안정적 영속화로 캡차 우회 |
+| **디버깅 도구** | 정적 스크린샷 캡처 의존 | **Trace Viewer (타임라인 리플레이)** | 실패 시 DOM 상태, 콘솔 로그, 네트워크를 시간대별로 완벽 복기 |
 
 ---
 
