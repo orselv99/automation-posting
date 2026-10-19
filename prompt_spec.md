@@ -48,12 +48,19 @@
 
 # 미술 감독 지침: 펜화 에칭 삽화 (Art Direction: Pen & Ink Illustration)
 
+- **배경색 엄수 규칙 (반드시 #ece0c6 일치):**
+  * 네이버 블로그 본문 및 캔버스의 고유 배경색은 연한 양피지 미색인 **#ece0c6** (RGB: 236, 224, 198)입니다.
+  * 다른 베이지/황토색 톤(예: #E9D5B2 등)이 섞이면 블로그 스킨과 이질감이 발생하므로, 배경색은 **반드시 #ece0c6 단일 톤**으로 일치시켜야 합니다.
+  * 이미지 생성 프롬프트에 배경색(#ece0c6)을 강력한 필수 제약으로 명시합니다.
+
 - **스타일 앵커 (Style Anchor):**
-  *(※ 이미지 생성 모델의 정밀한 화풍 구현을 위해 영문 앵커 전문을 유지합니다)*
-  `Detailed monochrome pen and ink illustration, cross-hatching line art style, etching and woodcut engraving inspired, classic dark fantasy indie graphic novel art. Strictly no color fills—depth, volume, and shadows are created entirely through fine line density, hatching, and stippling. High contrast, highly detailed background, atmospheric lighting. (background color is #ece0c6)`
-- **시각적 구도 규칙:**
+  *(※ 이미지 생성 모델의 정밀한 화풍 구현 및 배경색 일치를 위해 영문 앵커 전문을 유지합니다)*
+  `Detailed monochrome black ink pen illustration on flat parchment background with exact solid hex color #ece0c6 (RGB: 236, 224, 198). Perfectly uniform background canvas #ece0c6 matching the blog theme. Cross-hatching line art style, etching and woodcut engraving inspired, classic dark fantasy indie graphic novel art. Strictly no colored fills, no gradients, no digital airbrush shading—depth, volume, and chiaroscuro shadows are created purely through fine black ink line density, cross-hatching, and stippling against the uniform #ece0c6 parchment. High contrast black line art, atmospheric medieval architectural background.`
+
+- **시각적 구도 및 삽화 배치 연계 규칙:**
   * 순수 고전/중세 판타지 소품만 허용 (양피지, 밀랍 봉인, 고딕 석조 아치, 기름등잔, 황동 천구의/아스트롤라베, 깃펜, 무쇠 열쇠, 가고일, 단조 샹들리에 등).
-  * 16:9 와이드 시네마틱 구도로 서사의 클라이맥스 순간을 포착.
+  * 16:9 와이드 시네마틱 구도로 서사 속 가장 시각적 매혹이 극대화되는 순간을 포착.
+  * **삽화 배치 유연화:** 삽화를 기계적으로 글 중앙에 배치하지 않고, **소설 속에서 해당 장면이나 대상(기이한 장인, 변칙 건축, 신비로운 유물 등)이 처음 모습을 드러내거나 극적 전환이 일어나는 가장 어울리는 문맥 위치**에 자연스럽게 `[삽화 삽입 위치]` 태그를 삽입합니다.
 
 ---
 
@@ -84,17 +91,18 @@
 - 핵심 컨셉: [세계관 속 기이한 규칙과 아이러니를 담은 1~2줄 요약]
 
 ### 1. 🎨 AI 이미지 생성 프롬프트
-- English Prompt: [스타일 앵커 + 서사 클라이맥스 씬 묘사가 결합된 영문 프롬프트]
-- 프롬프트 요약 해설: [구도, 명암 대비, 배경 속 고전 환상 디테일 포인트 한국어 설명]
+- English Prompt: [스타일 앵커(#ece0c6 배경 엄수) + 서사 클라이맥스 씬 묘사가 결합된 영문 프롬프트]
+- 프롬프트 요약 해설: [구도, #ece0c6 단일 배경 일치 여부, 명암 대비, 디테일 포인트 한국어 설명]
 
 ### 2. 마스터피스 단편 소설 (약 2000자)
 [도입부 인용 경구 (마크다운 > 기호 없이 순수 텍스트)]
 
-(본문 전반부 서사: 약 1,000자)
+(도입부 및 서사 전개: 세계관의 기이한 규칙과 정경 묘사)
 
 [삽화 삽입 위치]
+※ 기계적인 50:50 정중앙 배치를 지양하고, 해당 삽화가 묘사하는 장면/오브젝트가 극적으로 드러나는 가장 어울리는 문맥 위치에 유연하게 배치합니다.
 
-(본문 후반부 서사: 약 1,000자)
+(후반부 및 결말: 서사의 절정과 고요한 여운을 남기는 마무리)
 
 태그: #판타지소설 #단편소설 #환상문학 #[특정명사태그1] #[특정명사태그2]
 ```
