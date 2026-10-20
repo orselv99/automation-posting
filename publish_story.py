@@ -41,6 +41,72 @@ from email_notifier import send_failure_email
 # 블로그 카테고리 전체 공통 고정 태그 (3종)
 BASE_TAGS = ["#판타지소설", "#단편소설", "#환상문학"]
 
+def extract_quote_block(text: str):
+    """
+    본문에서 명시적 [인용구]...[/인용구] 블록 또는 고전 경구 블록을 추출합니다.
+    인용구가 없는 경우 (None, text)를 반환합니다.
+    """
+    # 1. [인용구] ... [/인용구] 태그 매칭
+    tag_match = re.search(r"\[인용구\](.*?)\[/인용구\]", text, flags=re.DOTALL)
+    if tag_match:
+        raw_quote = tag_match.group(1).strip()
+        cleaned_text = text.replace(tag_match.group(0), "").strip()
+        lines = [l.strip() for l in raw_quote.split("\n") if l.strip()]
+        if len(lines) >= 2:
+            quote_text = lines[0].strip('"').strip('“').strip('”')
+            quote_source = lines[1]
+        elif len(lines) == 1:
+            quote_text = lines[0]
+            quote_source = ""
+        else:
+            return None, cleaned_text
+        return {"text": quote_text, "source": quote_source}, cleaned_text
+
+    # 2. 마크다운 첫 문단에 — 또는 『 출처가 포함된 고전 인용구가 오는 경우 유연한 감지
+    paragraphs = [p.strip() for p in text.strip().split("\n\n") if p.strip()]
+    if paragraphs:
+        first_p = paragraphs[0]
+        if "—" in first_p or "『" in first_p:
+            lines = [l.strip() for l in first_p.split("\n") if l.strip()]
+            if len(lines) >= 2 and any(sym in lines[-1] for sym in ["—", "『", "중", "장"]):
+                quote_text = "\n".join(lines[:-1]).strip('"').strip('“').strip('”')
+                quote_source = lines[-1]
+                cleaned_text = "\n\n".join(paragraphs[1:]).strip()
+                return {"text": quote_text, "source": quote_source}, cleaned_text
+
+    return None, text
+
+def apply_indent_to_narrative(text: str) -> str:
+    """
+    화자의 대화문(큰따옴표)과 장면 서술문(지문)을 구분하여,
+    서술문 문단의 첫머리에 전각 공백(U+3000, 　) 1칸을 자동으로 적용합니다.
+    """
+    paragraphs = []
+    for p in text.split("\n\n"):
+        p_strip = p.strip(" \t\r\n")
+        if not p_strip:
+            continue
+        # 서술문(따옴표로 시작하지 않는 문단)인 경우
+        if not p_strip.startswith('"') and not p_strip.startswith('“') and not p_strip.startswith('「') and not p_strip.startswith('『'):
+            # 이미 전각 공백이나 들여쓰기가 없는 경우 전각 공백 1칸 삽입
+            if not p_strip.startswith('\u3000') and not p_strip.startswith('  '):
+                p_strip = '\u3000' + p_strip
+        paragraphs.append(p_strip)
+    return "\n\n".join(paragraphs)
+
+def format_dialogue_newlines(text: str) -> str:
+    """
+    화자의 대사(따옴표)와 장면 서술문이 한 줄에 붙어 있는 경우,
+    가독성을 위해 독립된 문단으로 안전하게 줄바꿈을 분리합니다.
+    - 서술문 끝(.!?) 뒤에 바로 시작 따옴표(")가 이어지는 경우 줄바꿈 분리
+    - 닫는 따옴표(") 뒤에 바로 한글/영문 서술문이 이어지는 경우 줄바꿈 분리
+    """
+    # 1. 서술문 뒤에 바로 따옴표 대사가 붙은 경우: 예) ...했다. "대사..." -> 줄바꿈
+    text = re.sub(r'([.!?])\s+(")', r'\1\n\n\2', text)
+    # 2. 따옴표 대사 뒤에 바로 서술문이 붙은 경우: 예) "대사..." 그는 말했다. -> 줄바꿈
+    text = re.sub(r'(")\s+([가-힣A-Za-z0-9])', r'\1\n\n\2', text)
+    return text
+
 def clean_markdown_for_naver(text: str) -> str:
     """
     네이버 스마트에디터 ONE에 맞게 마크다운 기호들을 정규식으로 안전하게 제거합니다.
@@ -52,7 +118,7 @@ def clean_markdown_for_naver(text: str) -> str:
     """
     lines = []
     for line in text.split("\n"):
-        stripped = line.strip()
+        stripped = line.strip(" \t\r\n")
         # 가로 구분선 (---, ***, ___ 등) 제거
         if re.match(r"^[-*_]{3,}\s*$", stripped):
             continue
@@ -66,7 +132,7 @@ def clean_markdown_for_naver(text: str) -> str:
         stripped = re.sub(r"__(.*?)__", r"\1", stripped)
         stripped = re.sub(r"`(.*?)`", r"\1", stripped)
         lines.append(stripped)
-    return "\n".join(lines).strip()
+    return "\n".join(lines).strip(" \t\r\n")
 
 def parse_story_markdown(file_path: Path):
     """
@@ -118,29 +184,43 @@ def parse_story_markdown(file_path: Path):
     elif "### 2" in content:
         story_section = content.split("### 2")[1]
 
+    # '마스터피스 단편 소설' 헤더 텍스트 라인 제거
+    story_section = re.sub(r"^\s*마스터피스\s*단편\s*소설[^\n]*\n+", "", story_section)
+
     # 본문 끝에 붙은 구분선 및 태그 영역 제거
     if "---" in story_section:
         story_section = story_section.split("---")[0]
     if "태그:" in story_section:
         story_section = story_section.split("태그:")[0]
 
+    # [인용구] 블록 추출 및 본문에서 분리
+    quote, story_section = extract_quote_block(story_section)
+
     # [삽화 삽입 위치] 마커를 기준으로 본문을 전반부와 후반부로 분할
     parts = re.split(r"\[(?:삽화 삽입 위치|삽화 위치|삽화|ILLUSTRATION_HERE)\]", story_section, flags=re.IGNORECASE)
     if len(parts) >= 2:
-        raw_part1 = parts[0].strip()
-        raw_part2 = parts[1].strip()
+        raw_part1 = parts[0].strip(" \t\r\n")
+        raw_part2 = parts[1].strip(" \t\r\n")
     else:
         # 마커가 누락된 경우 문단 단위로 절반 위치를 계산하여 분할
-        paragraphs = [p for p in story_section.strip().split("\n\n") if p.strip()]
+        paragraphs = [p for p in story_section.strip(" \t\r\n").split("\n\n") if p.strip(" \t\r\n")]
         mid = len(paragraphs) // 2
         raw_part1 = "\n\n".join(paragraphs[:mid])
         raw_part2 = "\n\n".join(paragraphs[mid:])
+
+    # 화자 대화문(따옴표)과 서술문 간 줄바꿈 자동 정규화
+    raw_part1 = format_dialogue_newlines(raw_part1)
+    raw_part2 = format_dialogue_newlines(raw_part2)
 
     # 각 파트별 마크다운 기호 최종 제거
     part1 = clean_markdown_for_naver(raw_part1)
     part2 = clean_markdown_for_naver(raw_part2)
 
-    return title, part1, part2, final_tags
+    # 서술문 문단 첫 줄 전각 공백(U+3000) 들여쓰기 자동 적용
+    part1 = apply_indent_to_narrative(part1)
+    part2 = apply_indent_to_narrative(part2)
+
+    return title, quote, part1, part2, final_tags
 
 def main():
     """
@@ -165,10 +245,14 @@ def main():
         )
         sys.exit(1)
 
-    title, part1, part2, tags = parse_story_markdown(story_path)
+    title, quote, part1, part2, tags = parse_story_markdown(story_path)
     print(f"[*] 파싱 및 정제된 제목: {title}")
-    print(f"[*] 본문 1부 길이: {len(part1)}자 (마크다운 문법 제거 완료)")
-    print(f"[*] 본문 2부 길이: {len(part2)}자 (마크다운 문법 제거 완료)")
+    if quote:
+        print(f"[*] 감지된 인용구: '{quote.get('text')}' (출처: {quote.get('source')})")
+    else:
+        print("[*] 인용구 없음 (인메디아스 레스 / 본문 직결형 서두)")
+    print(f"[*] 본문 1부 길이: {len(part1)}자 (서술문 들여쓰기 및 줄바꿈 완료)")
+    print(f"[*] 본문 2부 길이: {len(part2)}자 (서술문 들여쓰기 및 줄바꿈 완료)")
     print(f"[*] 규격화된 태그 목록 (기본 3종 + 특정 2~3종): {tags}")
 
     MAX_RETRIES = 3
@@ -187,6 +271,7 @@ def main():
                 image_path=str(image_path),
                 body_part2=part2,
                 tags=tags,
+                quote=quote,
                 headless=args.headless
             )
             if result.get("status") == "success":
@@ -195,7 +280,8 @@ def main():
                 # [연계 1] Google Drive 클라우드 아카이빙
                 try:
                     from gdrive_archiver import archive_to_google_drive
-                    full_content = f"{part1}\n\n[삽화]\n\n{part2}\n\n태그: {' '.join(tags)}"
+                    quote_header = f"[{quote['text']}\n{quote['source']}]\n\n" if quote else ""
+                    full_content = f"{quote_header}{part1}\n\n[삽화]\n\n{part2}\n\n태그: {' '.join(tags)}"
                     archive_to_google_drive(title, full_content, str(image_path))
                 except Exception as gerr:
                     print(f"[-] Google Drive 아카이빙 알림 (발행은 정상 완료됨): {gerr}")

@@ -40,6 +40,7 @@ def publish_to_naver_blog(
     image_path: str,
     body_part2: str,
     tags: list[str],
+    quote: dict = None,
     config_path: str = None,
     headless: bool = False
 ) -> dict:
@@ -52,6 +53,7 @@ def publish_to_naver_blog(
     - image_path: 본문 중간에 삽입할 삽화 이미지 경로
     - body_part2: 삽화 이후의 본문 후반부
     - tags: 등록할 태그 리스트 (기본 3종 + 고유 2~3종)
+    - quote: 선택적 버티컬 라인 인용구 딕셔너리 ({"text": "...", "source": "..."})
     - headless: 백그라운드 무화면 브라우저 모드 여부
     """
     config = get_config()
@@ -146,10 +148,50 @@ def publish_to_naver_blog(
         page.wait_for_timeout(800)
         print("[+] 제목 입력 완료")
 
+        # [단계 1.5: 선택적 버티컬 라인 인용구 입력]
+        if quote and quote.get("text"):
+            print(f"[*] 스마트에디터 버티컬 라인 인용구 입력 중: '{quote.get('text')[:30]}...'")
+            try:
+                # 1. 툴바의 인용구 드롭다운 옵션 버튼 클릭
+                q_opt_btn = editor_frame.locator("button.se-document-toolbar-select-option-button[data-name='quotation']").first
+                if q_opt_btn.is_visible(timeout=3000):
+                    q_opt_btn.click()
+                    page.wait_for_timeout(400)
+                    # 2. '버티컬 라인' (quotation_line) 옵션 클릭
+                    q_line_btn = editor_frame.locator(
+                        "button.se-toolbar-option-insert-quotation-quotation_line-button, button[data-value='quotation_line']"
+                    ).first
+                    if q_line_btn.is_visible(timeout=2000):
+                        q_line_btn.click()
+                        page.wait_for_timeout(600)
+
+                        # 3. 인용구 본문 텍스트 입력
+                        page.keyboard.insert_text(quote["text"])
+                        page.wait_for_timeout(300)
+
+                        # 4. 출처 텍스트가 있을 경우 출처 영역 클릭 후 입력
+                        if quote.get("source"):
+                            cite_p = editor_frame.locator("div.se-cite p, .se-quotation-source").first
+                            if cite_p.is_visible(timeout=2000):
+                                cite_p.click()
+                                page.wait_for_timeout(300)
+                                page.keyboard.insert_text(quote["source"])
+                                page.wait_for_timeout(300)
+
+                        # 5. 인용구 블록 밖으로 나와 일반 본문 영역으로 커서 이동
+                        page.keyboard.press("ArrowDown")
+                        page.keyboard.press("ArrowDown")
+                        page.wait_for_timeout(300)
+                        page.keyboard.press("Enter")
+                        page.wait_for_timeout(300)
+                        print("[+] 버티컬 라인 인용구 입력 완료")
+            except Exception as qe:
+                print(f"[!] 버티컬 라인 인용구 입력 중 알림 (본문 계속 진행): {qe}")
+
         # [단계 2: 본문 전반부 입력]
         print("[*] 소설 본문 전반부 입력 중...")
-        for paragraph in body_part1.strip().split("\n"):
-            line = paragraph.strip()
+        for paragraph in body_part1.strip("\r\n").split("\n"):
+            line = paragraph.strip(" \t\r\n")
             if not line:
                 page.keyboard.press("Enter")
                 continue
@@ -198,8 +240,8 @@ def publish_to_naver_blog(
 
         # [단계 4: 본문 후반부 입력]
         print("[*] 소설 본문 후반부 입력 중...")
-        for paragraph in body_part2.strip().split("\n"):
-            line = paragraph.strip()
+        for paragraph in body_part2.strip("\r\n").split("\n"):
+            line = paragraph.strip(" \t\r\n")
             if not line:
                 page.keyboard.press("Enter")
                 continue
