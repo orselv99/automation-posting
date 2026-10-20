@@ -45,12 +45,14 @@ def extract_quote_block(text: str):
     """
     본문에서 명시적 [인용구]...[/인용구] 블록 또는 고전 경구 블록을 추출합니다.
     인용구가 없는 경우 (None, text)를 반환합니다.
+    지원 태그 형식: [인용구]...[/인용구], [인용구:프레임]...[/인용구], [인용구:포스트잇]...[/인용구] 등
     """
-    # 1. [인용구] ... [/인용구] 태그 매칭
-    tag_match = re.search(r"\[인용구\](.*?)\[/인용구\]", text, flags=re.DOTALL)
+    # 1. [인용구] 또는 [인용구:스타일명] ... [/인용구] 태그 매칭
+    tag_match = re.search(r"\[인용구(?::([가-힣a-zA-Z_&]+))?\](.*?)\[/인용구\]", text, flags=re.DOTALL)
     if tag_match:
-        raw_quote = tag_match.group(1).strip()
-        cleaned_text = text.replace(tag_match.group(0), "").strip()
+        quote_style = tag_match.group(1).strip() if tag_match.group(1) else None
+        raw_quote = tag_match.group(2).strip()
+        cleaned_text = text.replace(tag_match.group(0), "").strip(" \t\r\n")
         lines = [l.strip() for l in raw_quote.split("\n") if l.strip()]
         if len(lines) >= 2:
             quote_text = lines[0].strip('"').strip('“').strip('”')
@@ -60,10 +62,10 @@ def extract_quote_block(text: str):
             quote_source = ""
         else:
             return None, cleaned_text
-        return {"text": quote_text, "source": quote_source}, cleaned_text
+        return {"text": quote_text, "source": quote_source, "style": quote_style}, cleaned_text
 
     # 2. 마크다운 첫 문단에 — 또는 『 출처가 포함된 고전 인용구가 오는 경우 유연한 감지
-    paragraphs = [p.strip() for p in text.strip().split("\n\n") if p.strip()]
+    paragraphs = [p.strip(" \t\r\n") for p in text.strip(" \t\r\n").split("\n\n") if p.strip(" \t\r\n")]
     if paragraphs:
         first_p = paragraphs[0]
         if "—" in first_p or "『" in first_p:
@@ -71,8 +73,8 @@ def extract_quote_block(text: str):
             if len(lines) >= 2 and any(sym in lines[-1] for sym in ["—", "『", "중", "장"]):
                 quote_text = "\n".join(lines[:-1]).strip('"').strip('“').strip('”')
                 quote_source = lines[-1]
-                cleaned_text = "\n\n".join(paragraphs[1:]).strip()
-                return {"text": quote_text, "source": quote_source}, cleaned_text
+                cleaned_text = "\n\n".join(paragraphs[1:]).strip(" \t\r\n")
+                return {"text": quote_text, "source": quote_source, "style": None}, cleaned_text
 
     return None, text
 

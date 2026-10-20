@@ -22,6 +22,7 @@ import os
 import sys
 import json
 import time
+import random
 from pathlib import Path
 from playwright.sync_api import sync_playwright, Page, TimeoutError as PlaywrightTimeoutError
 
@@ -33,6 +34,25 @@ if sys.stdout.encoding != 'utf-8':
         pass
 
 from config_loader import get_config, PROJECT_ROOT
+
+# 네이버 스마트에디터 ONE 제공 인용구 6종 스타일 매핑
+ALL_QUOTE_STYLES = [
+    ("default", "따옴표"),
+    ("quotation_line", "버티컬 라인"),
+    ("quotation_bubble", "말풍선"),
+    ("quotation_underline", "라인&따옴표"),
+    ("quotation_postit", "포스트잇"),
+    ("quotation_corner", "프레임")
+]
+
+QUOTE_STYLE_MAP = {
+    "따옴표": "default", "default": "default", "quote": "default",
+    "버티컬라인": "quotation_line", "버티컬 라인": "quotation_line", "quotation_line": "quotation_line", "line": "quotation_line",
+    "말풍선": "quotation_bubble", "quotation_bubble": "quotation_bubble", "bubble": "quotation_bubble",
+    "라인따옴표": "quotation_underline", "라인&따옴표": "quotation_underline", "밑줄": "quotation_underline", "quotation_underline": "quotation_underline", "underline": "quotation_underline",
+    "포스트잇": "quotation_postit", "메모지": "quotation_postit", "quotation_postit": "quotation_postit", "postit": "quotation_postit",
+    "프레임": "quotation_corner", "액자": "quotation_corner", "모서리": "quotation_corner", "quotation_corner": "quotation_corner", "corner": "quotation_corner"
+}
 
 def publish_to_naver_blog(
     title: str,
@@ -148,21 +168,32 @@ def publish_to_naver_blog(
         page.wait_for_timeout(800)
         print("[+] 제목 입력 완료")
 
-        # [단계 1.5: 선택적 버티컬 라인 인용구 입력]
+        # [단계 1.5: 선택적 6종 인용구 입력 (지정 또는 6종 전체 랜덤)]
         if quote and quote.get("text"):
-            print(f"[*] 스마트에디터 버티컬 라인 인용구 입력 중: '{quote.get('text')[:30]}...'")
+            req_style = quote.get("style")
+            if req_style and req_style in QUOTE_STYLE_MAP:
+                style_code = QUOTE_STYLE_MAP[req_style]
+                style_name = next((name for code, name in ALL_QUOTE_STYLES if code == style_code), req_style)
+            else:
+                style_code, style_name = random.choice(ALL_QUOTE_STYLES)
+
+            print(f"[*] 스마트에디터 인용구 입력 중 (스타일: '{style_name}' [{style_code}]): '{quote.get('text')[:30]}...'")
             try:
                 # 1. 툴바의 인용구 드롭다운 옵션 버튼 클릭
                 q_opt_btn = editor_frame.locator("button.se-document-toolbar-select-option-button[data-name='quotation']").first
+                if not q_opt_btn.is_visible(timeout=3000):
+                    q_opt_btn = editor_frame.locator("button[data-name='quotation']").first
+
                 if q_opt_btn.is_visible(timeout=3000):
                     q_opt_btn.click()
                     page.wait_for_timeout(400)
-                    # 2. '버티컬 라인' (quotation_line) 옵션 클릭
-                    q_line_btn = editor_frame.locator(
-                        "button.se-toolbar-option-insert-quotation-quotation_line-button, button[data-value='quotation_line']"
+
+                    # 2. 선택된 인용구 스타일 옵션 버튼 클릭
+                    target_btn = editor_frame.locator(
+                        f"button.se-toolbar-option-insert-quotation-{style_code}-button, button[data-value='{style_code}']"
                     ).first
-                    if q_line_btn.is_visible(timeout=2000):
-                        q_line_btn.click()
+                    if target_btn.is_visible(timeout=2000):
+                        target_btn.click()
                         page.wait_for_timeout(600)
 
                         # 3. 인용구 본문 텍스트 입력
@@ -184,9 +215,9 @@ def publish_to_naver_blog(
                         page.wait_for_timeout(300)
                         page.keyboard.press("Enter")
                         page.wait_for_timeout(300)
-                        print("[+] 버티컬 라인 인용구 입력 완료")
+                        print(f"[+] '{style_name}'({style_code}) 인용구 입력 완료")
             except Exception as qe:
-                print(f"[!] 버티컬 라인 인용구 입력 중 알림 (본문 계속 진행): {qe}")
+                print(f"[!] 인용구 입력 중 알림 (본문 계속 진행): {qe}")
 
         # [단계 2: 본문 전반부 입력]
         print("[*] 소설 본문 전반부 입력 중...")
