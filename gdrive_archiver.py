@@ -76,17 +76,18 @@ def get_or_create_folder(service, folder_name: str, parent_id: str = None) -> st
     folder = service.files().create(body=file_metadata, fields='id').execute()
     return folder.get('id')
 
-def _perform_single_archive(title: str, story_content: str, image_path: str = None, local_path: str = None) -> dict:
+def _perform_single_archive(title: str, story_content: str, image_path: str = None, local_path: str = None, target_date: str = None) -> dict:
     """
     단일 아카이빙 실행 단위 함수입니다.
     로컬 동기화 경로가 설정되어 있으면 로컬 디스크에 저장하고,
     그렇지 않으면 Google Drive REST API를 사용하여 클라우드에 직접 업로드합니다.
     """
+    today = target_date or datetime.now().strftime("%Y-%m-%d")
+
     # 옵션 1: 사용자가 Google Drive PC 클라이언트(동기화 마운트 폴더)를 설정한 경우
     if local_path and os.path.exists(local_path):
         target_dir = Path(local_path) / "__generated__" / "gemini-hobby-fantasy-scene"
         target_dir.mkdir(parents=True, exist_ok=True)
-        today = datetime.now().strftime("%Y-%m-%d")
         doc_file = target_dir / f"{today} - {title}.txt"
         with open(doc_file, "w", encoding="utf-8") as f:
             f.write(f"제목: {title}\n일자: {today}\n\n{story_content}")
@@ -121,7 +122,6 @@ def _perform_single_archive(title: str, story_content: str, image_path: str = No
     target_folder_id = get_or_create_folder(service, "gemini-hobby-fantasy-scene", parent_id=parent_id)
 
     # 2. 소설 본문 업로드 (Google Docs 형식으로 자동 변환)
-    today = datetime.now().strftime("%Y-%m-%d")
     doc_title = f"{today} - {title}"
     doc_metadata = {
         'name': doc_title,
@@ -157,7 +157,8 @@ def archive_to_google_drive(
     story_content: str,
     image_path: str = None,
     config_path: str = None,
-    max_retries: int = 3
+    max_retries: int = 3,
+    target_date: str = None
 ) -> dict:
     """
     소설과 삽화를 Google Drive에 아카이빙합니다.
@@ -179,7 +180,8 @@ def archive_to_google_drive(
                 title=title,
                 story_content=story_content,
                 image_path=image_path,
-                local_path=local_path
+                local_path=local_path,
+                target_date=target_date
             )
             if res.get("status") == "success":
                 print(f"[+] [성공] Google Drive 아카이빙이 {attempt}번째 시도에서 완료되었습니다.")

@@ -68,12 +68,33 @@ def main():
         # OAuth 인증 플로우 생성
         flow = InstalledAppFlow.from_client_secrets_file(str(credentials_file), SCOPES)
         
-        # 로컬 임시 서버를 구동하고 기본 브라우저를 열어 구글 동의 화면을 띄웁니다.
+        # 고정 포트로 바인딩
+        port = 8088
+        flow.redirect_uri = f"http://localhost:{port}/"
+        auth_url, _ = flow.authorization_url(prompt="consent", access_type="offline")
+
+        # 인증 URL을 파일로 저장하고 즉시 콘솔 출력
+        with open(PROJECT_ROOT / "auth_url.txt", "w", encoding="utf-8") as f:
+            f.write(auth_url)
+
+        print("\n" + "=" * 70, flush=True)
+        print("[인증 링크 생성 완료]", flush=True)
+        print(f"AUTH_URL={auth_url}", flush=True)
+        print("=" * 70 + "\n", flush=True)
+
+        # Windows 명령어로 브라우저 강제 실행 시도
+        try:
+            import subprocess
+            subprocess.Popen(["cmd.exe", "/c", "start", "", auth_url], shell=False)
+        except Exception as be:
+            print(f"[*] 브라우저 자동 실행 실패(수동 클릭 필요): {be}", flush=True)
+
+        # 로컬 서버 대기
         creds = flow.run_local_server(
-            port=0,
-            open_browser=True,
+            port=port,
+            open_browser=False,
             prompt="consent",
-            authorization_prompt_message="\n[인증 링크] 브라우저가 열리지 않았거나 다시 열려면 아래 URL에 접속하세요:\n{url}\n"
+            authorization_prompt_message="Waiting for authorization at {url}..."
         )
 
         # 획득한 자격 증명(Access Token, Refresh Token)을 JSON 파일로 영구 저장
