@@ -76,17 +76,48 @@ def get_or_create_folder(service, folder_name: str, parent_id: str = None) -> st
     folder = service.files().create(body=file_metadata, fields='id').execute()
     return folder.get('id')
 
-def _perform_single_archive(title: str, story_content: str, image_path: str = None, local_path: str = None, target_date: str = None) -> dict:
+def _get_or_create_nested_folder(service, folder_path: str) -> str:
+    """
+    '__generated__/gemini-hobby-fantasy-recipe'처럼 슬래시(/)로 구분된
+    중첩 폴더 경로를 순차적으로 탐색·생성하고 최종 폴더의 ID를 반환합니다.
+    """
+    parts = [p.strip() for p in folder_path.replace("\\", "/").split("/") if p.strip()]
+    parent_id = None
+    for part in parts:
+        parent_id = get_or_create_folder(service, part, parent_id=parent_id)
+    return parent_id
+
+
+def _perform_single_archive(
+    title: str,
+    story_content: str,
+    image_path: str = None,
+    local_path: str = None,
+    target_date: str = None,
+    folder_path: str = None,
+    image_paths: list[str] = None,
+    subfolder_per_post: bool = False
+) -> dict:
     """
     단일 아카이빙 실행 단위 함수입니다.
     로컬 동기화 경로가 설정되어 있으면 로컬 디스크에 저장하고,
     그렇지 않으면 Google Drive REST API를 사용하여 클라우드에 직접 업로드합니다.
     """
     today = target_date or datetime.now().strftime("%Y-%m-%d")
+    resolved_folder_path = folder_path or "__generated__/gemini-hobby-fantasy-scene"
+
+    # 단일 image_path와 다중 image_paths 통합
+    all_images = []
+    if image_paths:
+        all_images.extend([p for p in image_paths if p and os.path.exists(p)])
+    elif image_path and os.path.exists(image_path):
+        all_images.append(image_path)
 
     # 옵션 1: 사용자가 Google Drive PC 클라이언트(동기화 마운트 폴더)를 설정한 경우
     if local_path and os.path.exists(local_path):
-        target_dir = Path(local_path) / "__generated__" / "gemini-hobby-fantasy-scene"
+        target_dir = Path(local_path).joinpath(*[p for p in resolved_folder_path.replace("\\", "/").split("/") if p])
+        if subfolder_per_post:
+            target_dir = target_dir / f"{today} - {title}"
         target_dir.mkdir(parents=True, exist_ok=True)
         doc_file = target_dir / f"{today} - {title}.txt"
         with open(doc_file, "w", encoding="utf-8") as f:
@@ -117,38 +148,44 @@ def _perform_single_archive(title: str, story_content: str, image_path: str = No
     # 드라이브 v3 클라이언트 빌드
     service = build('drive', 'v3', credentials=creds)
 
-    # 1. 2단계 폴더 계층 구조 확보: __generated__ -> gemini-hobby-fantasy-scene
-    parent_id = get_or_create_folder(service, "__generated__")
-    target_folder_id = get_or_create_folder(service, "gemini-hobby-fantasy-scene", parent_id=parent_id)
+    # 1. 중첩 폴더 계층 구조 확보 (예: __generated__ -> gemini-hobby-fantasy-recipe)
+    target_folder_id = _get_or_create_nested_folder(service, resolved_folder_path)
+    if subfolder_per_post:
+        target_folder_id = get_or_create_folder(service, f"{today} - {title}", parent_id=target_folder_id)
 
-    # 2. 소설 본문 업로드 (Google Docs 형식으로 자동 변환)
+    # 2. 본문 업로드 (Google Docs 형식으로 자동 변환)
     doc_title = f"{today} - {title}"
     doc_metadata = {
         'name': doc_title,
         'parents': [target_folder_id],
         'mimeType': 'application/vnd.google-apps.document'  # 구글 문서로 변환
     }
-    # 텍스트 메모리 버퍼를 업로드 스트림으로 연결
     media = MediaIoBaseUpload(io.BytesIO(story_content.encode('utf-8')), mimetype='text/plain', resumable=True)
     doc = service.files().create(body=doc_metadata, media_body=media, fields='id, name, webViewLink').execute()
     print(f"[+] Google Drive 문서 생성 완료: {doc.get('name')} (ID: {doc.get('id')})")
 
-    # 3. 삽화 이미지가 존재하는 경우 이미지 파일도 같은 폴더에 업로드
-    img_id = None
-    if image_path and os.path.exists(image_path):
+    # 3. 삽화 이미지 업로드 (단일 또는 다중)
+    uploaded_img_ids = []
+    for idx, img_p in enumerate(all_images, start=1):
+        if len(all_images) == 1 and not image_paths:
+            img_name = f"{today} - {title} - 삽화.png"
+        else:
+            img_name = f"{today} - {title} - {idx}.png"
         img_metadata = {
-            'name': f"{today} - {title} - 삽화.png",
+            'name': img_name,
             'parents': [target_folder_id]
         }
-        img_media = MediaFileUpload(image_path, mimetype='image/png')
+        img_media = MediaFileUpload(img_p, mimetype='image/png')
         img_file = service.files().create(body=img_metadata, media_body=img_media, fields='id').execute()
-        img_id = img_file.get('id')
-        print(f"[+] Google Drive 삽화 업로드 완료: (ID: {img_id})")
+        uploaded_img_ids.append(img_file.get('id'))
+        print(f"[+] Google Drive 삽화 업로드 완료 ({idx}/{len(all_images)}): {img_name} (ID: {img_file.get('id')})")
 
     return {
         "status": "success",
+        "folder_path": resolved_folder_path,
         "doc_id": doc.get('id'),
-        "image_id": img_id,
+        "image_id": uploaded_img_ids[0] if uploaded_img_ids else None,
+        "image_ids": uploaded_img_ids,
         "web_link": doc.get('webViewLink')
     }
 
@@ -158,30 +195,38 @@ def archive_to_google_drive(
     image_path: str = None,
     config_path: str = None,
     max_retries: int = 3,
-    target_date: str = None
+    target_date: str = None,
+    folder_path: str = None,
+    image_paths: list[str] = None,
+    subfolder_per_post: bool = False,
+    schedule_title: str = "Google Drive Archiving - Daily Fantasy Novel"
 ) -> dict:
     """
-    소설과 삽화를 Google Drive에 아카이빙합니다.
+    콘텐츠와 삽화(단일/다중)를 Google Drive에 아카이빙합니다.
     최대 3회 재시도(Exponential Backoff)를 수행하며, 모두 실패하면 실패 알림 이메일을 전송합니다.
     """
     from config_loader import get_config
     cfg = get_config()
     gdrive_cfg = cfg.get("google_drive", {})
     local_path = gdrive_cfg.get("local_mount_path")
+    resolved_folder_path = folder_path or gdrive_cfg.get("folder_path") or "__generated__/gemini-hobby-fantasy-scene"
 
     last_error = ""
     last_tb = ""
 
     # 최대 max_retries회 재시도 루프
     for attempt in range(1, max_retries + 1):
-        print(f"\n[*] [Google Drive 시도 {attempt}/{max_retries}] 아카이빙 시도 중: '{title}'...")
+        print(f"\n[*] [Google Drive 시도 {attempt}/{max_retries}] 아카이빙 시도 중: '{title}' -> {resolved_folder_path}...")
         try:
             res = _perform_single_archive(
                 title=title,
                 story_content=story_content,
                 image_path=image_path,
                 local_path=local_path,
-                target_date=target_date
+                target_date=target_date,
+                folder_path=resolved_folder_path,
+                image_paths=image_paths,
+                subfolder_per_post=subfolder_per_post
             )
             if res.get("status") == "success":
                 print(f"[+] [성공] Google Drive 아카이빙이 {attempt}번째 시도에서 완료되었습니다.")
@@ -212,7 +257,7 @@ def archive_to_google_drive(
     print("!" * 70 + "\n")
 
     send_failure_email(
-        schedule_title="Google Drive Archiving - Daily Fantasy Novel",
+        schedule_title=schedule_title,
         error_message=f"Google Drive 아카이빙 3회 연속 실패 ('{title}'): {last_error}",
         error_traceback=last_tb
     )

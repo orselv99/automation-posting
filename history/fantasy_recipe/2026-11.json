@@ -1,0 +1,26 @@
+{
+  "year_month": "2026-11",
+  "posts": [
+    {
+      "date": "2026-11-24",
+      "title": "대마법사의 공중부양 치즈 수플레",
+      "category": "Rezept",
+      "tags": [
+        "#판타지레시피",
+        "#판타지요리",
+        "#코미디판타지",
+        "#치즈수플레",
+        "#공중부양요리",
+        "#마법레시피"
+      ],
+      "recipe_file": "generated\\fantasy_recipe\\2026-11\\24\\24-대마법사의 공중부양 치즈 수플레.md",
+      "image_files": [
+        "C:\\Users\\user.a\\.repo\\.private\\artifact_1\\generated\\fantasy_recipe\\2026-11\\24\\24-대마법사의 공중부양 치즈 수플레-1.png",
+        "C:\\Users\\user.a\\.repo\\.private\\artifact_1\\generated\\fantasy_recipe\\2026-11\\24\\24-대마법사의 공중부양 치즈 수플레-2.png",
+        "C:\\Users\\user.a\\.repo\\.private\\artifact_1\\generated\\fantasy_recipe\\2026-11\\24\\24-대마법사의 공중부양 치즈 수플레-3.png",
+        "C:\\Users\\user.a\\.repo\\.private\\artifact_1\\generated\\fantasy_recipe\\2026-11\\24\\24-대마법사의 공중부양 치즈 수플레-4.png"
+      ],
+      "published_at": "2026-11-24 10:50:48"
+    }
+  ]
+}

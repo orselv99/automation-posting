@@ -205,3 +205,106 @@ def apply_post_style(frame, page, style: Optional[Dict[str, Any]] = None) -> boo
                 print(f"[!] 컴포넌트 [{idx}] 글자 색상 적용 중 알림: {e}")
 
     return True
+
+
+def apply_heading_styles(
+    frame,
+    page,
+    headings: list[str],
+    heading_style: Optional[Dict[str, Any]] = None
+) -> int:
+    """
+    스마트에디터 ONE 본문에서 지정된 소제목(머리글) 문단만 찾아
+    개별 서식(예: 19pt, 굵게, #5c4033 다크 브라운)을 적용합니다.
+    반드시 apply_post_style() 일괄 서식 적용 직후에 호출해야 덮어쓰이지 않습니다.
+    """
+    if not headings:
+        return 0
+
+    hstyle = heading_style or {
+        "font_size": 19,
+        "bold": True,
+        "font_color": "#5c4033",
+    }
+    target_set = {h.strip() for h in headings if h and h.strip()}
+    if not target_set:
+        return 0
+
+    print(f"[*] 소제목(머리글) 스타일 적용 시작 ({len(target_set)}개 대상): {hstyle}")
+    styled_count = 0
+
+    paragraphs = frame.locator("div.se-component.se-text p.se-text-paragraph").all()
+    for p in paragraphs:
+        try:
+            txt = p.inner_text().strip()
+        except Exception:
+            continue
+        if txt not in target_set:
+            continue
+
+        try:
+            p.scroll_into_view_if_needed(timeout=2000)
+            p.click()
+            page.wait_for_timeout(200)
+            # 단일 줄 소제목 전체 선택
+            page.keyboard.press("Home")
+            page.keyboard.press("Shift+End")
+            page.wait_for_timeout(200)
+
+            # 1) 글자 크기
+            font_sz = hstyle.get("font_size")
+            if font_sz:
+                sz_val = str(font_sz).replace("pt", "").replace("px", "").strip()
+                fs_btn = frame.locator("button[data-name='font-size']").first
+                if fs_btn.is_visible(timeout=2000):
+                    fs_btn.click()
+                    page.wait_for_timeout(250)
+                    opt = frame.locator(
+                        f"button.se-toolbar-option-font-size-code-fs{sz_val}-button, button[class*='font-size'][data-value='fs{sz_val}']"
+                    ).first
+                    if opt.is_visible(timeout=1500):
+                        opt.click()
+                        page.wait_for_timeout(250)
+
+            # 2) 굵게 (Bold)
+            if hstyle.get("bold"):
+                bold_btn = frame.locator("button[data-name='bold']").first
+                if bold_btn.is_visible(timeout=1500):
+                    bold_btn.click()
+                else:
+                    page.keyboard.press("Control+B")
+                page.wait_for_timeout(200)
+
+            # 3) 글자 색상
+            font_color = hstyle.get("font_color")
+            if font_color and font_color not in ["색상없음", "none", "default", "기본", ""]:
+                fc_btn = frame.locator("button[data-name='font-color']").first
+                if fc_btn.is_visible(timeout=2000):
+                    fc_btn.click()
+                    page.wait_for_timeout(250)
+                    hex_str = font_color.lower().strip()
+                    hex_with_hash = hex_str if hex_str.startswith("#") else f"#{hex_str}"
+                    hex_raw = hex_str[1:] if hex_str.startswith("#") else hex_str
+
+                    palette_btn = frame.locator(f"button.se-color-palette[data-color='{hex_with_hash}']").first
+                    if palette_btn.is_visible(timeout=800):
+                        palette_btn.click()
+                    else:
+                        more_btn = frame.locator(".se-color-picker-more-button").first
+                        if more_btn.is_visible(timeout=1500):
+                            more_btn.click()
+                            page.wait_for_timeout(250)
+                        hex_inp = frame.locator("input.se-selected-color-hex").first
+                        apply_btn = frame.locator("button.se-color-picker-apply-button").first
+                        if hex_inp.is_visible(timeout=1500) and apply_btn.is_visible(timeout=1500):
+                            hex_inp.fill(hex_raw)
+                            page.wait_for_timeout(200)
+                            apply_btn.click()
+                    page.wait_for_timeout(250)
+
+            styled_count += 1
+            print(f"[+] 소제목 스타일 적용 완료: '{txt}'")
+        except Exception as he:
+            print(f"[!] 소제목 '{txt}' 스타일 적용 중 알림: {he}")
+
+    return styled_count

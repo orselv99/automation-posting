@@ -1,5 +1,5 @@
 """
-[단편 소설 자동 포스팅 오케스트레이터 (publish_story.py)]
+[단편 소설 자동 포스팅 오케스트레이터 (publish_scene.py)]
 
 주니어 개발자를 위한 파이프라인 및 아키텍처 안내:
 1. 마크다운 정제 (Markdown Stripping)가 필요한 이유:
@@ -248,6 +248,14 @@ def main():
         sys.exit(1)
 
     title, quote, part1, part2, tags = parse_story_markdown(story_path)
+
+    # [전처리] 삽화 배경색 #ece0c6 정밀 보정 (블로그 스킨 이음새 제거)
+    if image_path.exists():
+        try:
+            from image_bg_normalizer import normalize_background
+            normalize_background(image_path)
+        except Exception as berr:
+            print(f"[-] 배경색 보정 알림 (원본 유지): {berr}")
     print(f"[*] 파싱 및 정제된 제목: {title}")
     if quote:
         print(f"[*] 감지된 인용구: '{quote.get('text')}' (출처: {quote.get('source')})")
@@ -299,7 +307,7 @@ def main():
                         "image_file": str(image_path),
                         "published_at": time.strftime("%Y-%m-%d %H:%M:%S")
                     })
-                    print(f"[+] 월별 히스토리(history/{{yyyy-mm}}.json)에 기록 완료!")
+                    print(f"[+] 월별 히스토리(history/fantasy_scene/{{yyyy-mm}}.json)에 기록 완료!")
                 except Exception as herr:
                     print(f"[-] 히스토리 기록 알림: {herr}")
                 return

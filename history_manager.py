@@ -19,9 +19,10 @@ from datetime import datetime
 from pathlib import Path
 from config_loader import get_config, PROJECT_ROOT
 
-def get_history_dir() -> Path:
+def get_history_dir(subdir: str = "fantasy_scene") -> Path:
     """
     히스토리 저장소 디렉터리 경로를 반환합니다.
+    subdir 지정 시 하위 디렉터리(기본값 'fantasy_scene' -> history/fantasy_scene/, 레시피 'fantasy_recipe' -> history/fantasy_recipe/)를 사용합니다.
     폴더가 아직 없으면 mkdir(parents=True)를 통해 자동으로 생성합니다.
     """
     cfg = get_config()
@@ -33,6 +34,9 @@ def get_history_dir() -> Path:
     else:
         hdir = PROJECT_ROOT / "history"
 
+    if subdir:
+        hdir = hdir / subdir
+
     hdir.mkdir(parents=True, exist_ok=True)
     return hdir
 
@@ -40,17 +44,17 @@ def get_current_year_month() -> str:
     """현재 시스템 시간을 기준으로 'YYYY-MM' 형식의 문자열(예: '2026-10')을 반환합니다."""
     return datetime.now().strftime("%Y-%m")
 
-def get_monthly_history_file(year_month: str = None) -> Path:
+def get_monthly_history_file(year_month: str = None, subdir: str = "fantasy_scene") -> Path:
     """
     특정 연월의 히스토리 파일 경로를 반환합니다.
-    예: year_month가 '2026-09'이면 'history/2026-09.json'의 Path 객체 반환.
+    예: year_month가 '2026-09'이면 'history/fantasy_scene/2026-09.json'의 Path 객체 반환.
     생략 시 현재 연월을 기준으로 합니다.
     """
     if not year_month:
         year_month = get_current_year_month()
-    return get_history_dir() / f"{year_month}.json"
+    return get_history_dir(subdir=subdir) / f"{year_month}.json"
 
-def load_monthly_history(year_month: str = None) -> dict:
+def load_monthly_history(year_month: str = None, subdir: str = "fantasy_scene") -> dict:
     """
     지정된 연월의 JSON 파일을 읽어 딕셔너리로 반환합니다.
     파일이 아직 없거나 손상되었을 경우 기본 뼈대 구조를 안전하게 반환합니다.
@@ -58,7 +62,7 @@ def load_monthly_history(year_month: str = None) -> dict:
     if not year_month:
         year_month = get_current_year_month()
 
-    file_path = get_monthly_history_file(year_month)
+    file_path = get_monthly_history_file(year_month, subdir=subdir)
     if file_path.exists():
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -75,7 +79,7 @@ def load_monthly_history(year_month: str = None) -> dict:
         "posts": []
     }
 
-def save_post_to_monthly_history(post_data: dict, year_month: str = None) -> Path:
+def save_post_to_monthly_history(post_data: dict, year_month: str = None, subdir: str = "fantasy_scene") -> Path:
     """
     단일 포스팅 정보(post_data)를 해당되는 연월의 JSON 파일에 안전하게 저장하거나 갱신합니다.
     
@@ -102,7 +106,7 @@ def save_post_to_monthly_history(post_data: dict, year_month: str = None) -> Pat
     if not post_data.get("date"):
         post_data["date"] = f"{year_month}-01"
 
-    hdata = load_monthly_history(year_month)
+    hdata = load_monthly_history(year_month, subdir=subdir)
     posts = hdata.setdefault("posts", [])
     log_no = post_data.get("logNo")
 
@@ -113,13 +117,13 @@ def save_post_to_monthly_history(post_data: dict, year_month: str = None) -> Pat
     else:
         posts.append(post_data)
 
-    target_file = get_monthly_history_file(year_month)
+    target_file = get_monthly_history_file(year_month, subdir=subdir)
     with open(target_file, "w", encoding="utf-8") as f:
         json.dump(hdata, f, ensure_ascii=False, indent=2)
 
     # 데이터 정리: 만약 이 글이 이전 잘못된 연월 파일에 등록되어 있었다면 그 파일에서 삭제
     if log_no:
-        hdir = get_history_dir()
+        hdir = get_history_dir(subdir=subdir)
         for other_file in hdir.glob("????-??.json"):
             if other_file.name != f"{year_month}.json":
                 try:
@@ -136,15 +140,15 @@ def save_post_to_monthly_history(post_data: dict, year_month: str = None) -> Pat
 
     return target_file
 
-def load_recent_posts(limit: int = 15) -> list[dict]:
+def load_recent_posts(limit: int = 15, subdir: str = "fantasy_scene") -> list[dict]:
     """
     최신 월별 파일부터 역순으로 탐색하여 가장 최근에 작성된 글들을 limit개수만큼 수집합니다.
     
     활용처:
-    소설 창작 에이전트(LLM)가 프롬프트 생성 전 이 함수를 호출하여,
-    최근 다루었던 소재(예: 별감정사, 거울수리공 등)가 중복 출현하지 않도록 방어하는 데 사용됩니다.
+    창작 에이전트(LLM)가 프롬프트 생성 전 이 함수를 호출하여,
+    최근 다루었던 소재가 중복 출현하지 않도록 방어하는 데 사용됩니다.
     """
-    hdir = get_history_dir()
+    hdir = get_history_dir(subdir=subdir)
     # 파일명을 역순 정렬하면 2026-10.json -> 2026-09.json 순으로 최신 파일부터 접근합니다.
     month_files = sorted(hdir.glob("????-??.json"), reverse=True)
 
@@ -162,8 +166,8 @@ def load_recent_posts(limit: int = 15) -> list[dict]:
         except Exception:
             continue
 
-    # 만약 history/ 디렉터리에 아무 파일도 없다면 구버전 루트 history.json을 fallback으로 참조
-    if not collected_posts:
+    # 만약 history/fantasy_scene/ 디렉터리에 아무 파일도 없다면 구버전 루트 history.json을 fallback으로 참조 (기본 소설 전용)
+    if not collected_posts and subdir in (None, "fantasy_scene"):
         root_hist = PROJECT_ROOT / "history.json"
         if root_hist.exists():
             try:
@@ -178,14 +182,14 @@ def load_recent_posts(limit: int = 15) -> list[dict]:
 
     return collected_posts
 
-def get_all_migrated_log_nos() -> set[str]:
+def get_all_migrated_log_nos(subdir: str = "fantasy_scene") -> set[str]:
     """
     모든 월별 히스토리 파일에 등록된 네이버 글 번호(logNo)들을 set(집합) 형태로 반환합니다.
     
     태그 일괄 마이그레이션(migrate_tags.py) 시 이미 수정이 완료된 글들을
     O(1) 속도로 즉시 판별하여 중복 작업을 건너뛰기 위해 사용됩니다.
     """
-    hdir = get_history_dir()
+    hdir = get_history_dir(subdir=subdir)
     seen = set()
 
     for mfile in hdir.glob("????-??.json"):

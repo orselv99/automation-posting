@@ -28,16 +28,16 @@
 
 ## 📁 주요 구성 파일
 
-* `prompt_spec.md`: 고전 중세 다크판타지/신비주의 문학 창작 명세서 (테마 A~J 순환 및 금지어/서식 규칙)
-* `history_manager.py`: 월별 히스토리(`history/{yyyy-mm}.json`) 관리 및 최근 소재 중복 방지 로더
-* `history/{yyyy-mm}.json`: 월별 발행 및 마이그레이션된 소설의 날짜, 제목, 테마, 핵심 컨셉, 태그 아카이브
+* `prompt_spec_scene.md`: 고전 중세 다크판타지/신비주의 문학 창작 명세서 (테마 A~J 순환 및 금지어/서식 규칙)
+* `history_manager.py`: 월별 히스토리(`history/fantasy_scene/{yyyy-mm}.json`) 관리 및 최근 소재 중복 방지 로더
+* `history/fantasy_scene/{yyyy-mm}.json`: 월별 발행 및 마이그레이션된 소설의 날짜, 제목, 테마, 핵심 컨셉, 태그 아카이브
 * `config_loader.py`: `.env` 파일과 `config.json`을 연동하여 환경변수 및 상대경로를 자동 확장하는 중앙 설정 로더
 * `config.json`: 블로그 기본 설정 템플릿 (`.env` 환경변수로 값 바인딩)
 * `.env.example`: 로컬 환경 설정 템플릿 (블로그 ID, 이메일 알림 수신자, 크롬 프로필 경로 등)
 * `login_naver.py`: 전용 크롬 프로필(`chrome_profile/`)을 띄워 네이버에 1회 사전 로그인하는 도구
 * `editor_style.py`: 스마트에디터 ONE 서식 스타일(폰트, 크기, 색상, 정렬, 줄간격) 일괄 제어 모듈
 * `naver_publisher.py`: Playwright 기반 스마트에디터 ONE 자동 글쓰기 (설정된 post_style 자동 적용, 마크다운 문법 자동 제거, 삽화 중간 삽입, 태그 등록 및 즉시 발행)
-* `publish_story.py`: 3회 재시도 루프와 최종 실패 시 이메일 알림(Fallback)이 내장된 블로그 발행기
+* `publish_scene.py`: 3회 재시도 루프와 최종 실패 시 이메일 알림(Fallback)이 내장된 블로그 발행기
 * `email_notifier.py`: 3회 연속 실패 시 `[gemini-automation-failed] {스케쥴 제목}` 메일 발송 및 로그 기록기
 * `migrate_tags.py`: 블로그 내 기존 이전 글들을 검색하여 신규 태그 및 서식 스타일을 일괄 마이그레이션하는 고도화 도구
 * `gdrive_archiver.py`: Google Drive의 `__generated__/gemini-hobby-fantasy-scene` 경로에 문서를 자동 생성/동기화하는 아카이버
@@ -76,12 +76,12 @@
 
 ## ⏰ 일일 자동화 동작 방식 (매일 09:00 KST)
 
-1. **히스토리 확인 & 테마 선정**: `history/{yyyy-mm}.json`의 최근 발행 내역을 읽어 최근 다룬 테마/소재를 제외하고 신규 테마(A~J)를 선정.
-2. **소설 창작**: `prompt_spec.md` 명세에 맞춰 2,000자 내외의 옴니버스 단편 소설과 에칭풍 삽화 영문 프롬프트 생성.
-3. **삽화 생성**: 영문 프롬프트로 고해상도 펜화 에칭 일러스트(#ece0c6 배경색 엄수)를 생성하여 `./generated/{yyyy-mm}/{dd}-{title}.png`로 저장.
-4. **소설 저장**: `./generated/{yyyy-mm}/{dd}-{title}.md`에 원고 저장.
-5. **블로그 즉시 발행**: `publish_story.py` 실행 (마크다운 정제 -> 기본서체/15pt 입력 -> 서사 흐름에 맞는 위치에 삽화 삽입 -> 태그 5종 입력 -> 즉시 발행).
-6. **히스토리 업데이트**: 발행된 글의 메타데이터를 `history/{yyyy-mm}.json`에 실시간 기록.
+1. **히스토리 확인 & 테마 선정**: `history/fantasy_scene/{yyyy-mm}.json`의 최근 발행 내역을 읽어 최근 다룬 테마/소재를 제외하고 신규 테마(A~J)를 선정.
+2. **소설 창작**: `prompt_spec_scene.md` 명세에 맞춰 2,000자 내외의 옴니버스 단편 소설과 에칭풍 삽화 영문 프롬프트 생성.
+3. **삽화 생성**: 영문 프롬프트로 고해상도 펜화 에칭 일러스트(#ece0c6 배경색 엄수)를 생성하여 `./generated/fantasy_scene/{yyyy-mm}/{dd}-{title}.png`로 저장.
+4. **소설 저장**: `./generated/fantasy_scene/{yyyy-mm}/{dd}-{title}.md`에 원고 저장.
+5. **블로그 즉시 발행**: `publish_scene.py` 실행 (마크다운 정제 -> 기본서체/15pt 입력 -> 서사 흐름에 맞는 위치에 삽화 삽입 -> 태그 5종 입력 -> 즉시 발행).
+6. **히스토리 업데이트**: 발행된 글의 메타데이터를 `history/fantasy_scene/{yyyy-mm}.json`에 실시간 기록.
 
 ---
 
@@ -103,18 +103,18 @@
 
 ---
 
-### 2. 단편 소설 및 삽화 수동 발행 (`publish_story.py`)
+### 2. 단편 소설 및 삽화 수동 발행 (`publish_scene.py`)
 
 지정된 소설 마크다운 원고와 삽화 이미지를 정제하여 네이버 블로그에 포스팅하고 Google Drive에 동시 아카이빙합니다.
 
 * **기본 실행 (브라우저 확인 가능)**
   ```bash
-  python publish_story.py --story ./generated/2026-10/19-침묵의\ 방직공과\ 별빛의\ 매듭.md --image ./generated/2026-10/19-침묵의\ 방직공과\ 별빛의\ 매듭.png
+  python publish_scene.py --story ./generated/fantasy_scene/2026-10/19-침묵의\ 방직공과\ 별빛의\ 매듭.md --image ./generated/fantasy_scene/2026-10/19-침묵의\ 방직공과\ 별빛의\ 매듭.png
   ```
 
 * **헤드리스 모드 실행 (백그라운드)**
   ```bash
-  python publish_story.py --story <소설.md> --image <삽화.png> --headless
+  python publish_scene.py --story <소설.md> --image <삽화.png> --headless
   ```
 
 > **포함 동작**:
@@ -170,7 +170,7 @@
 > - `--align <mode>`: 정렬 오버라이드 (`left`, `center`, `right`, `justify`)
 > - `--line-height <pct>`: 줄간격 오버라이드 (`180`, `190`, `200`)
 > - `--force`: 히스토리 기록 여부와 무관하게 모든 글에 재적용
-> - 수정 완료 즉시 `history/{yyyy-mm}.json`에 최신 서식과 태그 메타데이터가 실시간 영속화됩니다.
+> - 수정 완료 즉시 `history/fantasy_scene/{yyyy-mm}.json`에 최신 서식과 태그 메타데이터가 실시간 영속화됩니다.
 
 ---
 
@@ -208,17 +208,17 @@ flowchart TD
     end
 
     subgraph Creation ["창작 단계 (09:00 KST)"]
-        HIST_READ["history_manager.py (최근 15편 소재 조회)"] --> PROMPT["prompt_spec.md (테마 선정 & 중복 방지)"]
+        HIST_READ["history_manager.py (최근 15편 소재 조회)"] --> PROMPT["prompt_spec_scene.md (테마 선정 & 중복 방지)"]
         PROMPT --> STORY["소설 원고 (.md)"]
         PROMPT --> ILLUST["삽화 이미지 (.png, #ece0c6 배경)"]
     end
 
     subgraph Publishing ["발행 및 파이프라인"]
-        STORY & ILLUST --> PUB["publish_story.py"]
+        STORY & ILLUST --> PUB["publish_scene.py"]
         PUB --> CLEAN["clean_markdown_for_naver (마크다운 기호 제거)"]
         CLEAN --> NP["naver_publisher.py (Playwright 키보드 타이핑)"]
         NP -->|성공| GD["gdrive_archiver.py (구글 문서/이미지 백업)"]
-        NP -->|성공| HM_WRITE["history_manager.py (history/{yyyy-mm}.json 저장)"]
+        NP -->|성공| HM_WRITE["history_manager.py (history/fantasy_scene/{yyyy-mm}.json 저장)"]
         NP -->|3회 연속 실패| MAIL["email_notifier.py (관리자 Gmail 알림 & 로그)"]
     end
 ```
@@ -234,7 +234,7 @@ flowchart TD
 * **Q. 왜 브라우저 대신 HTTP 요청(urllib)으로 글 목록을 탐색하나요?**
   * 네이버 블로그의 iframe 페이지네이션을 브라우저로 클릭하면 2페이지 이후 로딩 지연 및 레이스 컨디션이 빈번합니다. 반면 `PostList.naver`에 HTTP GET 요청을 보내면 서버가 `socialPluginInfoJson` 안에 전체 글 번호와 제목을 정형 JSON으로 내려주므로, 70편 전체를 2초 만에 오차 없이 수집할 수 있습니다.
 
-* **Q. 히스토리 파일을 왜 월별(`history/{yyyy-mm}.json`)로 분할했나요?**
+* **Q. 히스토리 파일을 왜 월별(`history/fantasy_scene/{yyyy-mm}.json`)로 분할했나요?**
   * 단일 `history.json` 파일은 수백 편이 쌓일수록 I/O 비용이 급증하고 정전이나 비정상 종료 시 전체 데이터 손상 위험이 있습니다. 월별 분할을 적용하면 활성 파일 크기가 작게 유지되며, 최근 소재 중복 검사 시에도 최신 1~2개 월 파일만 읽으면 되므로 매우 효율적입니다.
 
 * **Q. 제목에서 태그를 추출할 때 정규식이 복잡한 이유는 무엇인가요?**

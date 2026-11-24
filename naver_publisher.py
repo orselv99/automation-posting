@@ -54,32 +54,94 @@ QUOTE_STYLE_MAP = {
     "프레임": "quotation_corner", "액자": "quotation_corner", "모서리": "quotation_corner", "quotation_corner": "quotation_corner", "corner": "quotation_corner"
 }
 
+def _type_text_block(page, text: str):
+    """에디터에 텍스트 블록을 줄바꿈 단위로 키보드 입력합니다."""
+    if not text:
+        return
+    for paragraph in text.strip("\r\n").split("\n"):
+        line = paragraph.strip(" \t\r\n")
+        if not line:
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(40)
+            continue
+        page.keyboard.insert_text(line)
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(40)
+
+
+def _upload_image_in_editor(editor_frame, page, image_path: str, index_label: str = ""):
+    """에디터 현재 커서 위치에 단일 이미지를 업로드하고 하단으로 커서를 이동합니다."""
+    if not image_path or not os.path.exists(image_path):
+        print(f"[!] 이미지 경로를 찾을 수 없어 건너뜁니다{index_label}: {image_path}")
+        return
+
+    print(f"[*] 삽화 업로드 중{index_label}: {image_path}")
+    abs_image_path = os.path.abspath(image_path)
+    try:
+        pic_btn = editor_frame.locator("button[data-name='image'], button.se-image-toolbar-button, button:has-text('사진')").first
+        if pic_btn.is_visible(timeout=3000):
+            with page.expect_file_chooser(timeout=6000) as fc_info:
+                pic_btn.click()
+            file_chooser = fc_info.value
+            file_chooser.set_files(abs_image_path)
+            print(f"[*] 파일 선택기를 통해 이미지 첨부 성공{index_label}")
+        else:
+            file_input = editor_frame.locator("input[type='file'][accept*='image']").first
+            file_input.set_input_files(abs_image_path)
+            print(f"[*] 파일 인풋을 통해 이미지 첨부 성공{index_label}")
+
+        # 네이버 이미지 업로드 및 CDN 렌더링 완료 대기
+        print(f"[*] 이미지 업로드 완료 대기 중 (6초){index_label}...")
+        page.wait_for_timeout(6000)
+        print(f"[+] 삽화 이미지 업로드 및 삽입 완료{index_label}")
+    except Exception as e:
+        print(f"[!] 이미지 첨부 중 알림{index_label}: {e}")
+        try:
+            file_input = editor_frame.locator("input[type='file'][accept*='image']").first
+            file_input.set_input_files(abs_image_path)
+            page.wait_for_timeout(5000)
+        except Exception as e2:
+            print(f"[!] 이미지 재시도 실패{index_label}: {e2}")
+
+    # 업로드된 이미지 블록 하단으로 커서를 이동하여 다음 본문 작성 위치 확보
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(500)
+
+
 def publish_to_naver_blog(
     title: str,
-    body_part1: str,
-    image_path: str,
-    body_part2: str,
-    tags: list[str],
+    body_part1: str = "",
+    image_path: str = None,
+    body_part2: str = "",
+    tags: list[str] = None,
     quote: dict = None,
     config_path: str = None,
-    headless: bool = False
+    headless: bool = False,
+    category_name: str = None,
+    body_segments: list[dict] = None,
+    keep_screenshot: bool = False,
+    headings: list[str] = None,
+    heading_style: dict = None,
+    heading_groups: list[tuple[list[str], dict]] = None
 ) -> dict:
     """
-    Playwright를 사용하여 네이버 블로그 스마트에디터 ONE에 소설과 삽화를 입력하고 즉시 발행합니다.
+    Playwright를 사용하여 네이버 블로그 스마트에디터 ONE에 콘텐츠와 삽화(단일/다중)를 입력하고 즉시 발행합니다.
     
     매개변수:
-    - title: 소설 제목
-    - body_part1: 삽화 이전의 본문 전반부
-    - image_path: 본문 중간에 삽입할 삽화 이미지 경로
-    - body_part2: 삽화 이후의 본문 후반부
-    - tags: 등록할 태그 리스트 (기본 3종 + 고유 2~3종)
-    - quote: 선택적 버티컬 라인 인용구 딕셔너리 ({"text": "...", "source": "..."})
+    - title: 글 제목
+    - body_part1 / image_path / body_part2: 기존 단일 삽화(소설) 하위 호환 매개변수
+    - body_segments: 다중 이미지 지원 세그먼트 리스트
+      예) [{"type": "text", "content": "..."}, {"type": "image", "path": "..."}, ...]
+    - tags: 등록할 태그 리스트
+    - quote: 선택적 인용구 딕셔너리 ({"text": "...", "source": "...", "style": "..."})
+    - category_name: 발행 대상 카테고리 오버라이드 (생략 시 config.json의 category_name 사용)
     - headless: 백그라운드 무화면 브라우저 모드 여부
     """
     config = get_config()
 
     blog_id = config.get("blog_id", "sun_o_glitter")
-    category_name = config.get("category_name", "Quatsch")
+    category_name = category_name or config.get("category_name", "Quatsch")
     profile_dir = Path(config.get("chrome_profile_dir", PROJECT_ROOT / "chrome_profile"))
     output_dir = Path(config.get("output_dir", PROJECT_ROOT / "generated"))
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -89,7 +151,11 @@ def publish_to_naver_blog(
     print(f"[*] 블로그 자동 발행 시작: https://blog.naver.com/{blog_id}")
     print(f"[*] 대상 카테고리: {category_name}")
     print(f"[*] 글 제목: {title}")
-    print(f"[*] 삽화 경로: {image_path}")
+    if body_segments is not None:
+        img_count = sum(1 for seg in body_segments if seg.get("type") == "image")
+        print(f"[*] 다중 세그먼트 모드: 총 {len(body_segments)}개 블록 (삽화 {img_count}장)")
+    else:
+        print(f"[*] 삽화 경로: {image_path}")
 
     with sync_playwright() as p:
         # 사전 로그인된 크롬 프로필 디렉터리를 로드하여 세션 유지
@@ -219,75 +285,50 @@ def publish_to_naver_blog(
             except Exception as qe:
                 print(f"[!] 인용구 입력 중 알림 (본문 계속 진행): {qe}")
 
-        # [단계 2: 본문 전반부 입력]
-        print("[*] 소설 본문 전반부 입력 중...")
-        for paragraph in body_part1.strip("\r\n").split("\n"):
-            line = paragraph.strip(" \t\r\n")
-            if not line:
-                page.keyboard.press("Enter")
-                continue
-            page.keyboard.insert_text(line)
-            page.keyboard.press("Enter")
-            page.wait_for_timeout(30)
+        # [단계 2~4: 본문 및 삽화 입력 (다중 세그먼트 모드 vs 기존 단일 삽화 모드)]
+        if body_segments is not None:
+            print(f"[*] 다중 세그먼트 본문/삽화 순차 입력 시작 (총 {len(body_segments)}개 블록)...")
+            img_idx = 0
+            for seg in body_segments:
+                seg_type = seg.get("type")
+                if seg_type == "text":
+                    content = seg.get("content", "")
+                    if content:
+                        _type_text_block(page, content)
+                        page.wait_for_timeout(400)
+                elif seg_type == "image":
+                    img_idx += 1
+                    _upload_image_in_editor(editor_frame, page, seg.get("path", ""), index_label=f" [{img_idx}]")
+            page.wait_for_timeout(1500)
+            print("[+] 다중 세그먼트 본문 및 삽화 입력 완료")
+        else:
+            # [단계 2: 본문 전반부 입력]
+            print("[*] 소설 본문 전반부 입력 중...")
+            _type_text_block(page, body_part1)
+            page.wait_for_timeout(1000)
+            print("[+] 소설 본문 전반부 입력 완료")
 
-        page.wait_for_timeout(1000)
-        print("[+] 소설 본문 전반부 입력 완료")
+            # [단계 3: 삽화 이미지 업로드]
+            if image_path and os.path.exists(image_path):
+                _upload_image_in_editor(editor_frame, page, image_path)
 
-        # [단계 3: 삽화 이미지 업로드]
-        # 에디터 툴바의 사진 버튼을 클릭하고 Playwright의 file_chooser 이벤트로 이미지 주입
-        if image_path and os.path.exists(image_path):
-            print(f"[*] 삽화 업로드 중: {image_path}")
-            abs_image_path = os.path.abspath(image_path)
-            try:
-                pic_btn = editor_frame.locator("button[data-name='image'], button.se-image-toolbar-button, button:has-text('사진')").first
-                if pic_btn.is_visible(timeout=3000):
-                    with page.expect_file_chooser(timeout=6000) as fc_info:
-                        pic_btn.click()
-                    file_chooser = fc_info.value
-                    file_chooser.set_files(abs_image_path)
-                    print("[*] 파일 선택기를 통해 이미지 첨부 성공")
-                else:
-                    file_input = editor_frame.locator("input[type='file'][accept*='image']").first
-                    file_input.set_input_files(abs_image_path)
-                    print("[*] 파일 인풋을 통해 이미지 첨부 성공")
+            # [단계 4: 본문 후반부 입력]
+            print("[*] 소설 본문 후반부 입력 중...")
+            _type_text_block(page, body_part2)
+            page.wait_for_timeout(1500)
+            print("[+] 소설 본문 후반부 입력 완료")
 
-                # 네이버 이미지 업로드 및 CDN 렌더링 완료 대기
-                print("[*] 이미지 업로드 완료 대기 중 (6초)...")
-                page.wait_for_timeout(6000)
-                print("[+] 삽화 이미지 업로드 및 삽입 완료")
-            except Exception as e:
-                print(f"[!] 이미지 첨부 중 알림: {e}")
-                try:
-                    file_input = editor_frame.locator("input[type='file'][accept*='image']").first
-                    file_input.set_input_files(abs_image_path)
-                    page.wait_for_timeout(5000)
-                except Exception as e2:
-                    print(f"[!] 이미지 재시도 실패: {e2}")
-
-        # 업로드된 이미지 블록 하단으로 커서를 이동하여 후반부 본문 작성 위치 확보
-        page.keyboard.press("ArrowDown")
-        page.keyboard.press("Enter")
-        page.wait_for_timeout(500)
-
-        # [단계 4: 본문 후반부 입력]
-        print("[*] 소설 본문 후반부 입력 중...")
-        for paragraph in body_part2.strip("\r\n").split("\n"):
-            line = paragraph.strip(" \t\r\n")
-            if not line:
-                page.keyboard.press("Enter")
-                continue
-            page.keyboard.insert_text(line)
-            page.keyboard.press("Enter")
-            page.wait_for_timeout(30)
-
-        page.wait_for_timeout(1500)
-        print("[+] 소설 본문 후반부 입력 완료")
-
-        # [단계 4.5: 본문 타이포그래피 서식 스타일 일괄 적용]
+        # [단계 4.5: 본문 타이포그래피 서식 스타일 일괄 적용 + 소제목/STEP 개별 스타일]
         try:
-            from editor_style import apply_post_style
+            from editor_style import apply_post_style, apply_heading_styles
             style_cfg = config.get("post_style", {})
             apply_post_style(editor_frame, page, style_cfg)
+            if headings:
+                apply_heading_styles(editor_frame, page, headings, heading_style)
+            if heading_groups:
+                for grp_headings, grp_style in heading_groups:
+                    if grp_headings:
+                        apply_heading_styles(editor_frame, page, grp_headings, grp_style)
         except Exception as se:
             print(f"[-] 서식 스타일 적용 알림 (기본값 유지): {se}")
 
@@ -341,17 +382,26 @@ def publish_to_naver_blog(
         print("[*] 최종 발행 처리 대기 중 (8초)...")
         page.wait_for_timeout(8000)
 
-        # 성공 증빙용 스크린샷 캡처
+        # 발행 완료 화면 검증용 캡처 (검증 후 기본 자동 삭제)
         page.screenshot(path=str(screenshot_path))
-        print(f"[+] 발행 완료 화면 캡처 저장: {screenshot_path}")
+        screenshot_verified = screenshot_path.exists() and screenshot_path.stat().st_size > 0
+        if screenshot_verified:
+            print(f"[+] 발행 완료 화면 검증 완료 ({screenshot_path.stat().st_size:,} bytes)")
+        if not keep_screenshot:
+            screenshot_path.unlink(missing_ok=True)
+            print(f"[*] 임시 검증 캡처 삭제 완료: {screenshot_path.name}")
+            saved_screenshot = None
+        else:
+            print(f"[+] 발행 완료 화면 캡처 보존: {screenshot_path}")
+            saved_screenshot = str(screenshot_path)
 
         context.close()
 
     return {
         "status": "success",
         "title": title,
-        "screenshot": str(screenshot_path)
+        "screenshot": saved_screenshot
     }
 
 if __name__ == "__main__":
-    print("naver_publisher 모듈이 로드되었습니다. 실제 발행은 publish_story.py를 실행하세요.")
+    print("naver_publisher 모듈이 로드되었습니다. 실제 발행은 publish_scene.py 또는 publish_recipe.py를 실행하세요.")
